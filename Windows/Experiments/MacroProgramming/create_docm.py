@@ -2,6 +2,7 @@ import os
 from docx import Document
 import win32com.client as win32
 
+# pip install python-docx pywin32
 # Create a Word document using python-docx
 # needs to be run on Windows and not linux
 doc = Document()
