@@ -3,6 +3,7 @@ from docx import Document
 import win32com.client as win32
 
 # Create a Word document using python-docx
+# needs to be run on Windows and not linux
 doc = Document()
 doc.add_heading('Document Title', 0)
 doc.add_paragraph('A paragraph in the document.')
