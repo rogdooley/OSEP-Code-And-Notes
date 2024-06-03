@@ -1,57 +1,71 @@
 using System;
 
-public class RC4
+// https://www.codeproject.com/Questions/1105019/RC-file-encryption-and-decryption-in-Csharp
+public static class RC4
 {
-    private byte[] S = new byte[256];
-    private int x = 0;
-    private int y = 0;
-
-    public RC4(byte[] key)
+    public static string Encrypt(string key, string data)
     {
-        for (int i = 0; i < 256; i++)
+        Encoding unicode = Encoding.Unicode;
+
+        return Convert.ToBase64String(Encrypt(unicode.GetBytes(key), unicode.GetBytes(data)));
+    }
+
+    public static string Decrypt(string key, string data)
+    {
+        Encoding unicode = Encoding.Unicode;
+
+        return unicode.GetString(Encrypt(unicode.GetBytes(key), Convert.FromBase64String(data)));
+    }
+
+    public static byte[] Encrypt(byte[] key, byte[] data)
+    {
+        return EncryptOutput(key, data).ToArray();
+    }
+
+    public static byte[] Decrypt(byte[] key, byte[] data)
+    {
+        return EncryptOutput(key, data).ToArray();
+    }
+
+    private static byte[] EncryptInitalize(byte[] key)
+    {
+        byte[] s = Enumerable.Range(0, 256)
+          .Select(i => (byte)i)
+          .ToArray();
+
+        for (int i = 0, j = 0; i < 256; i++)
         {
-            S[i] = (byte)i;
+            j = (j + key[i % key.Length] + s[i]) & 255;
+
+            Swap(s, i, j);
         }
 
+        return s;
+    }
+
+    private static IEnumerable<byte> EncryptOutput(byte[] key, IEnumerable<byte> data)
+    {
+        byte[] s = EncryptInitalize(key);
+
+        int i = 0;
         int j = 0;
-        for (int i = 0; i < 256; i++)
+
+        return data.Select((b) =>
         {
-            j = (j + S[i] + key[i % key.Length]) % 256;
-            Swap(i, j);
-        }
+            i = (i + 1) & 255;
+            j = (j + s[i]) & 255;
+
+            Swap(s, i, j);
+
+            return (byte)(b ^ s[(s[i] + s[j]) & 255]);
+        });
     }
 
-    private void Swap(int i, int j)
+    private static void Swap(byte[] s, int i, int j)
     {
-        byte temp = S[i];
-        S[i] = S[j];
-        S[j] = temp;
-    }
+        byte c = s[i];
 
-    public byte[] Encrypt(byte[] data)
-    {
-        byte[] buffer = new byte[data.Length];
-        for (int i = 0; i < data.Length; i++)
-        {
-            x = (x + 1) % 256;
-            y = (y + S[x]) % 256;
-            Swap(x, y);
-            int xorIndex = (S[x] + S[y]) % 256;
-            buffer[i] = (byte)(data[i] ^ S[xorIndex]);
-        }
-        return buffer;
-    }
-
-    public byte[] Decrypt(byte[] data)
-    {
-        // RC4 encryption and decryption are symmetric
-        return Encrypt(data);
+        s[i] = s[j];
+        s[j] = c;
     }
 }
-
-public class Program
-{
-    public static void Main()
-    {
-        byte[] key = System.Text.Encoding.UTF8.GetBytes("your-key");
-        byte[] data = System.Text.E
