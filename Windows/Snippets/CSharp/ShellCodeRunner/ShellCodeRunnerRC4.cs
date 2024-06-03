@@ -9,6 +9,7 @@ using System.Buffers.Text;
 using System.Collections;
 using System.Text.RegularExpressions;
 
+// RC4 code from https://gist.github.com/hoiogi/89cf2e9aa99ffc3640a4
 public class RC4
 {
     public static string Encrypt(string key, string data)
