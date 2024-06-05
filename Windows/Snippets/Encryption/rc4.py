@@ -38,9 +38,9 @@ def main():
 
     if (args.output):
         output_file = args.output
-    else {
+    else:
         output_file = args.file + '.out'
-    }
+    
     with open(output_file, 'wb') as file:
         file.write(result)
 
