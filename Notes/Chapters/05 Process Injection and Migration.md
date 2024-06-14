@@ -90,7 +90,7 @@ byte[] buf = new byte[511] {0xfc,0x48,0x83,0xe4,0xf0,0xe8,
 
 ```
 
-### Excersises
+### Exercises 
 
 ### #2 
 Modify the code of the ExampleAssembly project in DotNetToJscript to create a Jscript file that executes the shellcode inside explorer.exe. Instead of hardcoding the process ID, which cannot be known remotely, use the _Process.GetProcessByName_[8](https://portal.offsec.com/courses/pen-300-9502/learning/process-injection-and-migration-14686/finding-a-home-for-our-shellcode-14733/process-injection-in-c%23-14999#fn-local_id_490-8) method to resolve it dynamically.

