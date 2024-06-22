@@ -26,7 +26,7 @@
 - Create project in VS Studio Code (C# Console or C# .Net Console app)
 - Project needs to be sdk type
 - Search for cswin32 and install
-- ![[Pasted image 20240609122343.png]]
+- ![[InstallCsWin32.png]]
 - need to add addition nuget System.Memory package as well
 ```ps1
 
@@ -34,11 +34,11 @@ dotnet add package System.Memory
 
 ```
 - or using VS Code
-- ![[Pasted image 20240609122644.png]]
+- ![[NuGetSystemMemory.png]]
 
 - create NativeMethods.txt file in project
 - Allow unsafe code
-- ![[Pasted image 20240609123606.png]]
+- ![[AllowUnsafeCode.png]]
 
 **TODO** : Not Quite working for me yet. PInvoke."type" mapping doesn't match what was in the mapping from Offsec. Need to go through MS Docs.
 
