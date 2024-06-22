@@ -35,15 +35,15 @@ bp Amsi!AmsiScanBuffer
 ```powershell
 'amsiutils'
 ```
-![[Pasted image 20240620102817.png]]
+![](Images/WindbgContinue.png)
 - find the return instruction is c3
-- ![[Pasted image 20240620113152.png]]
-- ![[Pasted image 20240620115410.png]]
+- ![](Images/WindbgAmsiScanBufferLocation.png)
+- ![](Images/WindbgAmsiScanBufferCalls.png)
 - apparently we want to overwrite the address highlighted in gray (TODO: figure out why exactly)
 - in Windbg `u 00007ffd72e9387b` to move to that address
-- ![[Pasted image 20240620115618.png]]
+- ![](WindbgUnassemble.png)
 - overwrite with this command `eb 00007ffd72e9387b c3 90 90` (90 are nop)
-- ![[Pasted image 20240620115805.png]]
+- ![](Images/WindbgUnassemble-02.png)
 - now that address is altered to `ret` instead of `mov edi,r8d`
 
 ### Websites viewed for reference
@@ -52,3 +52,4 @@ bp Amsi!AmsiScanBuffer
 - https://www.rewterz.com/blog/how-i-bypassed-amsi-statically-using-windbg
 - https://rxored.github.io/post/csharploader/bypassing-amsi-with-csharp/#amsiscanbuffer
 - https://medium.com/@sam.rothlisberger/amsi-bypass-memory-patch-technique-in-2024-f5560022752b
+- http://windbg.info/doc/1-common-cmds.html
