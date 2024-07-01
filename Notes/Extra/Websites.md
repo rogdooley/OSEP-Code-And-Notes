@@ -17,6 +17,10 @@
 
 - VBA https://github.com/bonnetn/vba-obfuscator?tab=readme-ov-file
 
+### Applocker Bypassing
+
+- https://github.com/api0cradle/UltimateAppLockerByPassList (old probably somewhat outdated, but still...)
+
 ### Misc
 
 - https://lolbas-project.github.io/

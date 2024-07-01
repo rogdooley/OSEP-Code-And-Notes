@@ -78,7 +78,7 @@ extern "C" __declspec(dllexport) void run()
 - **Alternate Data Stream (ADS)** is a binary file attribute that contains metadata
 - can use this to append additional information to the original file
 - Find a file in a trusted location that is writeable and executable
-	- *TODO:* write a powershell script that finds files with these attributes
+	- *TODO:* write a cmd script that finds files with these attributes
 - Use `type` command to copy malicious content into an ADS
 	- Example: `type test.js > "C:\Program Files (x86)\TeamViewer\TeamViewer12_Logfile.log:test.js"`
 	- use `wscript` and specify the ADS to get code execution
