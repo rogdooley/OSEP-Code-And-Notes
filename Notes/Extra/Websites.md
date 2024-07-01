@@ -3,6 +3,8 @@
 - https://www.tevora.com/threat-blog/dynamic-invocation-in-csharp/
 - https://hausec.com/2020/10/30/using-a-c-shellcode-runner-and-confuserex-to-bypass-uac-while-evading-av/
 - https://crypt0ace.github.io/posts/Shellcode-Injection-Techniques-Part-3/
+- https://blog.xpnsec.com/weird-ways-to-execute-dotnet/
+- https://ppn.snovvcrash.rocks/red-team/maldev/code-injection/shellcode-runners
 
 
 ### AMSI
@@ -14,4 +16,7 @@
 ### Obfuscation
 
 - VBA https://github.com/bonnetn/vba-obfuscator?tab=readme-ov-file
-- 
+
+### Misc
+
+- https://lolbas-project.github.io/

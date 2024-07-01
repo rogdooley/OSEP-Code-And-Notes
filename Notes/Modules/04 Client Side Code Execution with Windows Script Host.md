@@ -192,6 +192,7 @@ downloadFile(url, destination);
 
 ## JScript and C\#
 
+- JScript Shellcode Runner creates a dll in C# and then used DotNetToJscript.exe to convert the C# assembly
 - run in memory rather than touching disk
 - needed to rebuild DotNetToJscript dll due to the following error
 ```cmd

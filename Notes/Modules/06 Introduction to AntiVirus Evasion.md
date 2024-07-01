@@ -117,6 +117,9 @@ If My.Computer.FileSystem.DirectoryExists("C:\backup\logs") Then
 End If
 ```
 
+
+### TODO: check out EvilClippy
+
 #### Obfuscation methods:
 
 - StrReverse (string reverse) to break signature detection of WMI calls, etc...
