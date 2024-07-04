@@ -1,64 +1,73 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Threading.Tasks;
 
 class Program
 {
     static async Task Main(string[] args)
     {
-        string key = null;
-        byte[] binaryArray = null;
-
-        // Parse command line arguments
-        for (int i = 0; i < args.Length; i++)
+        var rootCommand = new RootCommand
         {
-            switch (args[i])
+            new Option<string>(
+                new[] { "-k", "--key" },
+                description: "Base64 encoded key from the command line"),
+            new Option<string>(
+                new[] { "-t", "--target-url" },
+                description: "URL to fetch the base64 encoded key"),
+            new Option<string>(
+                new[] { "-i", "--import" },
+                description: "File path to import the binary array"),
+            new Option<string>(
+                new[] { "-b", "--binary-url" },
+                description: "URL to fetch the binary array")
+        };
+
+        rootCommand.Description = "A program to read and decode keys and binary arrays.";
+
+        rootCommand.Handler = CommandHandler.Create<string, string, string, string>(async (key, targetUrl, import, binaryUrl) =>
+        {
+            string keyValue = null;
+            byte[] binaryArray = null;
+
+            if (!string.IsNullOrEmpty(key))
             {
-                case "-k":
-                case "--key":
-                    if (i + 1 < args.Length)
-                    {
-                        key = args[++i];
-                    }
-                    break;
-                case "-t":
-                case "--target-url":
-                    if (i + 1 < args.Length)
-                    {
-                        key = await ReadKeyFromUrl(args[++i]);
-                    }
-                    break;
-                case "-i":
-                case "--import":
-                    if (i + 1 < args.Length)
-                    {
-                        binaryArray = File.ReadAllBytes(args[++i]);
-                    }
-                    break;
-                case "-b":
-                case "--binary-url":
-                    if (i + 1 < args.Length)
-                    {
-                        binaryArray = await ReadBinaryFromUrl(args[++i]);
-                    }
-                    break;
+                keyValue = key;
             }
-        }
 
-        // Decode the key if it was provided
-        if (!string.IsNullOrEmpty(key))
-        {
-            byte[] decodedKey = Convert.FromBase64String(key);
-            Console.WriteLine($"Decoded Key: {BitConverter.ToString(decodedKey)}");
-        }
+            if (!string.IsNullOrEmpty(targetUrl))
+            {
+                keyValue = await ReadKeyFromUrl(targetUrl);
+            }
 
-        // If binary array was read in, process it
-        if (binaryArray != null)
-        {
-            Console.WriteLine($"Binary Array Length: {binaryArray.Length}");
-            // Add your decryption logic here
-        }
+            if (!string.IsNullOrEmpty(import))
+            {
+                binaryArray = File.ReadAllBytes(import);
+            }
+
+            if (!string.IsNullOrEmpty(binaryUrl))
+            {
+                binaryArray = await ReadBinaryFromUrl(binaryUrl);
+            }
+
+            // Decode the key if it was provided
+            if (!string.IsNullOrEmpty(keyValue))
+            {
+                byte[] decodedKey = Convert.FromBase64String(keyValue);
+                Console.WriteLine($"Decoded Key: {BitConverter.ToString(decodedKey)}");
+            }
+
+            // If binary array was read in, process it
+            if (binaryArray != null)
+            {
+                Console.WriteLine($"Binary Array Length: {binaryArray.Length}");
+                // Add your decryption logic here
+            }
+        });
+
+        await rootCommand.InvokeAsync(args);
     }
 
     static async Task<string> ReadKeyFromUrl(string url)
