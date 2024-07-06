@@ -6,13 +6,19 @@
 - https://blog.xpnsec.com/weird-ways-to-execute-dotnet/
 - https://ppn.snovvcrash.rocks/red-team/maldev/code-injection/shellcode-runners
 
+### C\#
+
+- https://github.com/Flangvik/RosFuscator
 
 ### AMSI
 
 - https://rxored.github.io/post/csharploader/bypassing-amsi-with-csharp/
 - https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell/blob/master/README.md
+- https://amsi.fail/ (Powershell)
 
+### EDR
 
+- https://github.com/Yaxser/Backstab (kill EDR process)
 ### Obfuscation
 
 - VBA https://github.com/bonnetn/vba-obfuscator?tab=readme-ov-file
@@ -24,3 +30,15 @@
 ### Misc
 
 - https://lolbas-project.github.io/
+
+
+### For Ideas OSEP
+
+- https://aj-labz.gitbook.io/aj-labz/offensive-cyberz/defense-evasion/evade-heuristic-behaviors
+- https://ppn.snovvcrash.rocks/red-team/maldev/code-injection/process-hollowing
+- https://github.com/S3cur3Th1sSh1t/PowerSharpPack
+- https://github.com/mgeeky/Penetration-Testing-Tools
+
+### Scanning payloads
+
+- KleenScan (https://kleenscan.com/index)

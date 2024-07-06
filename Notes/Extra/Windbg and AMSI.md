@@ -36,15 +36,14 @@ bp Amsi!AmsiScanBuffer
 ```powershell
 'amsiutils'
 ```
-![](WindbgContinue.png)
+![](Images/WindbgContinue.png)
 - find the return instruction is c3
-- ![](WindbgAmsiScanBufferLocation.png)
-- ![](WindbgAmsiScanBufferCalls.png)
+![](Images/WindbgAmsiScanBufferLocation.png)![](Images/WindbgAmsiScanBufferCalls.png)
 - apparently we want to overwrite the address highlighted in gray (TODO: figure out why exactly)
 - in Windbg `u 00007ffd72e9387b` to move to that address
-- ![](WindbgUnassemble.png)
+![](Images/WindbgUnassemble.png)
 - overwrite with this command `eb 00007ffd72e9387b c3 90 90` (90 are nop)
-- ![](WindbgUnassemble-02.png)
+![](Images/WindbgUnassemble-02.png)
 - address is  now altered to `ret` instead of `mov edi,r8d`
 
 

