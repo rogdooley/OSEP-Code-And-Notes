@@ -1,4 +1,4 @@
-### Inspirtations and code that has been incorporated into these scripts
+### Inspiration and code that has been incorporated into these scripts
 
 - https://thalpius.com/2021/10/14/microsoft-windows-antimalware-scan-interface-bypasses/
 - https://www.rewterz.com/blog/how-i-bypassed-amsi-statically-using-windbg
