@@ -5,6 +5,6 @@ Add-Type -Path 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Workflow.
 $compilerparam = New-Object -TypeName Workflow.ComponentModel.Compiler.WorkflowCompilerParameters
 $pathvar = "test.txt"
 $compilerparam.GenerateInMemory = $True
-$output = "C:\\Tools\\test.xml"
+$output = "C:\\Tools\\run.xml"
 $tmp = $SerializeInputToWrapper.Invoke($null,@([Workflow.ComponentModel.Compiler.WorkflowCompilerParameters] $compilerparam,[String[]] @(,$pathvar)))
 Move-Item $tmp $output
