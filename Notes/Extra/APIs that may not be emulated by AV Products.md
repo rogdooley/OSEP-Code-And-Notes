@@ -29,3 +29,43 @@
 10. **Networking**:
     - `WSARecv`: Receives data from a connected socket.
     - `WSASend`: Sends data on a connected socket.
+
+
+- *NtAdjustPrivilegesToken* 
+- ***NtCreateNamedPipeFile*** 
+- *NtCreateFile* 
+- *NtCreateMutant* 
+- *NtCreateProcess*
+- ***NtQueryInformationProcess***
+- ***NtGetContextThread***
+- *NtOpenProcess*
+- *NtQuerySystemInformation*
+- ***NtCreateNamedPipeFile***
+- *NtReadVirtualMemory*
+- *NtResumeThread*
+- ***NtSetTimer***
+- *NtSetContextThread*
+- *NtSuspendThread*
+- ***NtAllocateVirtualMemory***
+- ***NtDeleteFile***
+- ***NtLockFile***
+- *NtAcceptConnectPort*
+- *NtAccessCheck*
+- *NtAlertResumeThread*
+- *NtAlertThread*
+- *NtCreateUserProcess*
+- *NtCreateThread*
+- *NtDelayExecution*
+- *NtFreeVirtualMemory*
+- *NtGetNextProcess*
+- *NtGetNextThread*
+- *NtQueryInstallUILanguage*
+- *NtUnlockFile*
+- *NtUnlockVirtualMemory*
+- *ZwPrivilegeCheck*
+- *RtlQueryRegistryValueWithFallback*
+- *RtlQueryRegistryValues*
+- *RtlQueryRegistryValuesEx*
+- ***NtQueryDirectoryFile***
+- ***NtQueryInformationProcess***
+- ***NtSetInformationProcess***

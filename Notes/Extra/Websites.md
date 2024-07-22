@@ -5,16 +5,20 @@
 - https://crypt0ace.github.io/posts/Shellcode-Injection-Techniques-Part-3/
 - https://blog.xpnsec.com/weird-ways-to-execute-dotnet/
 - https://ppn.snovvcrash.rocks/red-team/maldev/code-injection/shellcode-runners
+- https://www.solomonsklash.io/syscalls-for-shellcode-injection.html
 
 ### C\#
 
 - https://github.com/Flangvik/RosFuscator
+- https://github.com/crypt0ace/CS-Unhook
 
 ### AMSI
 
 - https://rxored.github.io/post/csharploader/bypassing-amsi-with-csharp/
 - https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell/blob/master/README.md
 - https://amsi.fail/ (Powershell)
+- https://github.com/EvilBytecode/Lifetime-AmsiBypass/blob/main/main.go
+- https://github.com/0xB455/AmsiBypass/blob/master/Class1.cs
 
 ### EDR
 
@@ -38,7 +42,10 @@
 - https://ppn.snovvcrash.rocks/red-team/maldev/code-injection/process-hollowing
 - https://github.com/S3cur3Th1sSh1t/PowerSharpPack
 - https://github.com/mgeeky/Penetration-Testing-Tools
-
+- https://github.com/Bw3ll/ShellWasp
+- https://aj-labz.gitbook.io/aj-labz/offensive-cyberz/defense-evasion/evade-heuristic-behaviors/applocker-bypass
+- https://lolbas-project.github.io/
+- https://ppn.snovvcrash.rocks/pentest/infrastructure/ad/av-edr-evasion/applocker-bypass
 ### Scanning payloads
 
 - KleenScan (https://kleenscan.com/index)

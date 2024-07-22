@@ -1,6 +1,7 @@
 ### TO DO:
 - https://github.com/V-i-x-x/AMSI-BYPASS/
 - https://www.offsec.com/blog/amsi-write-raid-0day-vulnerability/
+- https://practicalsecurityanalytics.com/new-amsi-bypass-using-clr-hooking/
 
 ## Powershell
 
