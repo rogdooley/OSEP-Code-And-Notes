@@ -1,7 +1,6 @@
 $windowsPath = "C:\Windows"
 $writableExecutableDirectories = @()
 
-# Function to check if a directory has writable and executable permissions for the current user
 function IsWritableExecutable {
     param (
         [string]$path
@@ -12,6 +11,9 @@ function IsWritableExecutable {
         $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent()
         $userSid = $currentUser.User.Value
 
+        # Get the "Everyone" group SID
+        $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+
         # Get the ACL for the directory
         $acl = Get-Acl -Path $path
         $accessRules = $acl.Access
@@ -20,8 +22,10 @@ function IsWritableExecutable {
         $hasExecutePermission = $false
 
         foreach ($rule in $accessRules) {
-            # Check if the rule applies to the current user
-            if ($rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value -eq $userSid) {
+            $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+            
+            # Check if the rule applies to the current user or Everyone
+            if ($ruleSid -eq $userSid -or $ruleSid -eq $everyoneSid.Value) {
                 # Check if the rule allows write access
                 if ($rule.AccessControlType -eq "Allow" -and ($rule.FileSystemRights -band "Write") -ne 0) {
                     $hasWritePermission = $true
@@ -56,8 +60,8 @@ foreach ($directory in $directories) {
 
 # Output writable and executable directories
 if ($writableExecutableDirectories.Count -gt 0) {
-    Write-Host "Writable and executable directories for the current user inside ${windowsPath}:"
+    Write-Host "Writable and executable directories for the current user or Everyone inside ${windowsPath}:"
     $writableExecutableDirectories | ForEach-Object { Write-Host $_ }
 } else {
-    Write-Host "No writable and executable directories found for the current user inside $windowsPath."
+    Write-Host "No writable and executable directories found for the current user or Everyone inside $windowsPath."
 }
