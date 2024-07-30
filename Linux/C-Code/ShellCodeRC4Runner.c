@@ -54,6 +54,7 @@ int main() {
 
     int ciphertext_len = BUF_SIZE - 1;
     unsigned char decrypted_buf[ciphertext_len];
+    unsigned char *key = key;
 
     decrypt(buf, ciphertext_len, key, decrypted_buf);
 

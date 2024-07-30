@@ -128,14 +128,23 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    fprintf(f, "unsigned char encoded_payload[] = \n\"");
+    fprintf(f, "#ifndef BUFFER_H\n");
+    fprintf(f, "#define BUFFER_H\n\n")
+
+    fprintf(f, "unsigned char key[] = \"%s\";\n", key);
+    fprintf(f, "unsigned char buf[] = \n\"");
     for (int i = 0; i < plaintext_len; i++) {
         fprintf(f, "\\x%02x", ciphertext[i]);
         if ((i + 1) % 16 == 0 && i != plaintext_len - 1) {
             fprintf(f, "\"\n\"");
         }
     }
+
     fprintf(f, "\";\n");
+    fprintf(f,"#define BUF_SIZE sizeof(buf)\n");
+    fprintf(f,"#endif\n");
+
+
     fclose(f);
 
     free(plaintext);
