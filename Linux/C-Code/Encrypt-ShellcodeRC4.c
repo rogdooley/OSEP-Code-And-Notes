@@ -1,6 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+void generate_rc4_key(unsigned char *key, size_t key_length) {
+    srand((unsigned int)time(NULL));
+    for (size_t i = 0; i < key_length; ++i) {
+        key[i] = (unsigned char)(rand() % 256);
+    }
+}
+
 
 void rc4_init(unsigned char *s, unsigned char *key, int keylen) {
     int i, j = 0, k;
@@ -98,12 +107,18 @@ unsigned char *read_shellcode(const char *filename, int *length) {
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s <shellcode file> <key>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <shellcode file>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     const char *filename = argv[1];
-    unsigned char *key = (unsigned char *)argv[2];
+    //unsigned char *key = (unsigned char *)argv[2];
+
+    unsigned char *key;
+    int key_length = 16; // For example, 16 bytes for a 128-bit key
+    key = (unsigned char *)malloc(key_length);
+    generate_rc4_key(key, key_length);
+
 
     int plaintext_len;
     unsigned char *plaintext = read_shellcode(filename, &plaintext_len);
@@ -147,6 +162,7 @@ int main(int argc, char *argv[]) {
 
     fclose(f);
 
+    free(key);
     free(plaintext);
     free(ciphertext);
 
