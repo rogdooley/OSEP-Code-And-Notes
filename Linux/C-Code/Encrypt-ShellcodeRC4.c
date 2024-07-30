@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(f, "#ifndef BUFFER_H\n");
-    fprintf(f, "#define BUFFER_H\n\n")
+    fprintf(f, "#define BUFFER_H\n\n");
 
     fprintf(f, "unsigned char key[] = \"%s\";\n", key);
     fprintf(f, "unsigned char buf[] = \n\"");
