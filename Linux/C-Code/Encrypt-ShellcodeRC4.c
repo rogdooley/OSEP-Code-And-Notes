@@ -3,11 +3,20 @@
 #include <string.h>
 #include <time.h>
 
-void generate_rc4_key(unsigned char *key, size_t key_length) {
-    srand((unsigned int)time(NULL));
-    for (size_t i = 0; i < key_length; ++i) {
-        key[i] = (unsigned char)(rand() % 256);
+void generate_rc4_key(unsigned char *key, size_t length) {
+    const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           "abcdefghijklmnopqrstuvwxyz"
+                           "0123456789"
+                           "!@#$%^&*()_+-=[]{}|;:,.<>?"; // Printable ASCII characters
+    size_t charset_size = sizeof(charset) - 1;
+
+    srand(time(NULL)); // Seed the random number generator
+
+    for (size_t i = 0; i < length; i++) {
+        key[i] = charset[rand() % charset_size];
     }
+
+    key[length] = '\0'; // Null-terminate the key
 }
 
 
@@ -106,13 +115,12 @@ unsigned char *read_shellcode(const char *filename, int *length) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s <shellcode file>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     const char *filename = argv[1];
-    //unsigned char *key = (unsigned char *)argv[2];
 
     unsigned char *key;
     int key_length = 16; // For example, 16 bytes for a 128-bit key
@@ -135,7 +143,7 @@ int main(int argc, char *argv[]) {
 
     encrypt(plaintext, plaintext_len, key, ciphertext);
 
-    FILE *f = fopen("encoded_payload.h", "w");
+    FILE *f = fopen("encrypted_payload.h", "w");
     if (!f) {
         perror("fopen");
         free(plaintext);
@@ -155,7 +163,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    fprintf(f, "\";\n");
+    fprintf(f, "\";\n\n");
     fprintf(f,"#define BUF_SIZE sizeof(buf)\n");
     fprintf(f,"#endif\n");
 

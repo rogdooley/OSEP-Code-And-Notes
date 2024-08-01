@@ -85,7 +85,7 @@ void create_daemon() {
     close(STDERR_FILENO);
 
     // Open the log file
-    openlog("mydaemon", LOG_PID, LOG_DAEMON);
+    //openlog("mydaemon", LOG_PID, LOG_DAEMON);
 }
 
 int main() {
