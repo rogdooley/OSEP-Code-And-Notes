@@ -5,6 +5,7 @@
 void print_hex(const char *input) {
     size_t len = strlen(input);
 
+    printf("unsigned char buf[] = \n");
     // Loop through each character in the input string
     for (size_t i = 0; i < len; i++) {
         // Print each character as a two-digit hexadecimal number
