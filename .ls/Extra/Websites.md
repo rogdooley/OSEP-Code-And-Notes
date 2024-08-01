@@ -23,6 +23,8 @@
 ### EDR
 
 - https://github.com/Yaxser/Backstab (kill EDR process)
+- https://github.com/tkmru/awesome-edr-bypass?tab=readme-ov-file
+- https://github.com/Mr-Un1k0d3r/EDRs
 ### Obfuscation
 
 - VBA https://github.com/bonnetn/vba-obfuscator?tab=readme-ov-file

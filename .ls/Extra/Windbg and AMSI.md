@@ -32,10 +32,11 @@ HRESULT AmsiScanBuffer(
 bp Amsi!AmsiScanBuffer
 ```
 - allow the powershell interactivity to continue using `g` in Windbg
-- on the powershell cmd line, type `'amsituils` to trigger AMSI
+- on the powershell cmd line, type `amsituils` to trigger AMSI
 ```powershell
 'amsiutils'
 ```
+
 ![](Images/WindbgContinue.png)
 - find the return instruction is c3
 ![](Images/WindbgAmsiScanBufferLocation.png)![](Images/WindbgAmsiScanBufferCalls.png)

