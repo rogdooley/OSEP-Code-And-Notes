@@ -847,6 +847,256 @@ In this table:
 - **Optional arguments** are marked with an asterisk (*) next to them.
 - **Arguments** are listed in a subtable under each function.
 
+
+In Windows, you can find the delegation tokens available on the machine using PowerShell by querying the security tokens associated with user sessions. Here's a method that involves using the `Get-Process` and `Get-WmiObject` cmdlets to identify the user sessions and corresponding tokens:
+
+### Method 1: Using `Get-WmiObject` and `Get-Process`
+
+1. **Get the list of user sessions**: You can use the `Get-WmiObject` cmdlet to query Win32_Session and find user sessions.
+
+2. **Identify tokens**: Once you have the sessions, you can identify the security tokens associated with these sessions. However, PowerShell doesn't have a direct cmdlet to enumerate tokens like `AccessToken` in C/C++ APIs, so this method focuses on identifying the processes and sessions which hold tokens.
+
+Here is a PowerShell script that will give you a basic rundown of the sessions and their associated user names, which may help you track down delegation tokens:
+
+```powershell
+# Get all user sessions
+$sessions = Get-WmiObject -Class Win32_Session
+
+# Iterate over each session
+foreach ($session in $sessions) {
+    $user = $session.UserName
+    $domain = $session.Domain
+    $sessionId = $session.SessionId
+
+    # Display session information
+    Write-Host "Session ID: $sessionId"
+    Write-Host "User: $domain\$user"
+
+    # Get all processes in the session to check if they might have delegation tokens
+    $processes = Get-Process | Where-Object { $_.SessionId -eq $sessionId }
+
+    foreach ($process in $processes) {
+        Write-Host "`tProcess: $($process.ProcessName) (PID: $($process.Id))"
+    }
+
+    Write-Host "`n"
+}
+```
+
+### Method 2: Using `whoami /groups` for Specific Tokens
+For a more targeted approach, you can use `whoami /groups` to see if the current user has certain privileges that would allow delegation (like the `SeDelegateSessionUserImpersonatePrivilege`).
+
+```powershell
+whoami /groups | Where-Object { $_ -match "SeDelegateSessionUserImpersonatePrivilege" }
+```
+
+This command will list the groups and privileges associated with the current user's token, and if the `SeDelegateSessionUserImpersonatePrivilege` is present, it means the user can create tokens that allow delegation.
+
+### Explanation:
+
+- **Sessions and Processes**: The script identifies user sessions and lists all processes running under those sessions. While this doesn’t directly enumerate delegation tokens, it provides insight into which users and processes are active on the system.
+  
+- **Token Privileges**: The `whoami /groups` command can check whether the user’s token has specific delegation-related privileges, such as `SeDelegateSessionUserImpersonatePrivilege`.
+
+### Further Token Examination:
+
+If you need to dig deeper and programmatically examine delegation tokens, you would typically need to use C/C++ with Windows API functions like `OpenProcessToken`, `GetTokenInformation`, etc. PowerShell is limited in this regard for directly handling tokens beyond basic enumeration and privilege checks.
+
+### Step 1: Install CSWin32 NuGet Package
+
+First, ensure you have installed the `Microsoft.Windows.CsWin32` NuGet package:
+
+```bash
+dotnet add package Microsoft.Windows.CsWin32
+```
+
+### Step 2: Modify `NativeMethods.txt`
+
+To generate the necessary P/Invoke signatures, include the following functions in your `NativeMethods.txt` file (you can find or create this file in the root of your project):
+
+```plaintext
+OpenProcessToken
+GetTokenInformation
+CloseHandle
+LookupAccountSid
+```
+
+### Step 3: Write the C# Code
+
+Now, you can write the C# code to enumerate processes and list tokens:
+
+```csharp
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Windows.Sdk;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        foreach (Process process in Process.GetProcesses())
+        {
+            SafeHandle hToken;
+            if (PInvoke.OpenProcessToken(process.Handle, TOKEN_ACCESS_MASK.TOKEN_QUERY, out hToken))
+            {
+                try
+                {
+                    int tokenInfoLength = 0;
+                    PInvoke.GetTokenInformation(hToken, TOKEN_INFORMATION_CLASS.TokenUser, IntPtr.Zero, tokenInfoLength, out tokenInfoLength);
+                    IntPtr tokenInfo = Marshal.AllocHGlobal(tokenInfoLength);
+
+                    if (PInvoke.GetTokenInformation(hToken, TOKEN_INFORMATION_CLASS.TokenUser, tokenInfo, tokenInfoLength, out tokenInfoLength))
+                    {
+                        var tokenUser = Marshal.PtrToStructure<TOKEN_USER>(tokenInfo);
+                        IntPtr pSid = tokenUser.User.Sid;
+
+                        uint cchName = 0;
+                        uint cchReferencedDomainName = 0;
+                        SID_NAME_USE sidUse;
+                        PInvoke.LookupAccountSid(null, pSid, null, ref cchName, null, ref cchReferencedDomainName, out sidUse);
+
+                        StringBuilder userName = new StringBuilder((int)cchName);
+                        StringBuilder domainName = new StringBuilder((int)cchReferencedDomainName);
+
+                        if (PInvoke.LookupAccountSid(null, pSid, userName, ref cchName, domainName, ref cchReferencedDomainName, out sidUse))
+                        {
+                            Console.WriteLine($"Process: {process.ProcessName}, User: {domainName}\\{userName}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Process: {process.ProcessName}, User: (Unknown)");
+                        }
+                    }
+
+                    Marshal.FreeHGlobal(tokenInfo);
+                }
+                finally
+                {
+                    hToken.Dispose();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Process: {process.ProcessName}, Token could not be opened.");
+            }
+        }
+    }
+}
+```
+
+
+Certainly! Below is a C++ version of the code that lists tokens associated with processes. The code uses Windows API functions like `OpenProcessToken`, `GetTokenInformation`, and `LookupAccountSid` to achieve this.
+
+### C++ Code Example: Listing Tokens Associated with Processes
+
+```cpp
+#include <iostream>
+#include <windows.h>
+#include <tlhelp32.h>
+#include <sddl.h>
+
+void PrintProcessTokenInfo(DWORD processID) {
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, processID);
+    if (hProcess == NULL) {
+        std::wcout << L"Could not open process: " << processID << L" (Error: " << GetLastError() << L")" << std::endl;
+        return;
+    }
+
+    HANDLE hToken;
+    if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken)) {
+        DWORD tokenInfoLength = 0;
+        GetTokenInformation(hToken, TokenUser, NULL, 0, &tokenInfoLength);
+        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+            std::wcout << L"Could not retrieve token information (Error: " << GetLastError() << L")" << std::endl;
+            CloseHandle(hProcess);
+            CloseHandle(hToken);
+            return;
+        }
+
+        TOKEN_USER* tokenUser = (TOKEN_USER*)malloc(tokenInfoLength);
+        if (GetTokenInformation(hToken, TokenUser, tokenUser, tokenInfoLength, &tokenInfoLength)) {
+            LPWSTR sidString;
+            if (ConvertSidToStringSid(tokenUser->User.Sid, &sidString)) {
+                std::wcout << L"Process ID: " << processID << L" SID: " << sidString << std::endl;
+
+                WCHAR userName[256], domainName[256];
+                DWORD userNameLen = sizeof(userName) / sizeof(WCHAR);
+                DWORD domainNameLen = sizeof(domainName) / sizeof(WCHAR);
+                SID_NAME_USE sidType;
+
+                if (LookupAccountSid(NULL, tokenUser->User.Sid, userName, &userNameLen, domainName, &domainNameLen, &sidType)) {
+                    std::wcout << L"User: " << domainName << L"\\" << userName << std::endl;
+                } else {
+                    std::wcout << L"LookupAccountSid failed (Error: " << GetLastError() << L")" << std::endl;
+                }
+
+                LocalFree(sidString);
+            }
+        } else {
+            std::wcout << L"GetTokenInformation failed (Error: " << GetLastError() << L")" << std::endl;
+        }
+
+        free(tokenUser);
+        CloseHandle(hToken);
+    } else {
+        std::wcout << L"OpenProcessToken failed (Error: " << GetLastError() << L")" << std::endl;
+    }
+
+    CloseHandle(hProcess);
+}
+
+int main() {
+    HANDLE hProcessSnap;
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE) {
+        std::wcout << L"CreateToolhelp32Snapshot failed (Error: " << GetLastError() << L")" << std::endl;
+        return 1;
+    }
+
+    if (Process32First(hProcessSnap, &pe32)) {
+        do {
+            PrintProcessTokenInfo(pe32.th32ProcessID);
+        } while (Process32Next(hProcessSnap, &pe32));
+    } else {
+        std::wcout << L"Process32First failed (Error: " << GetLastError() << L")" << std::endl;
+        CloseHandle(hProcessSnap);
+        return 1;
+    }
+
+    CloseHandle(hProcessSnap);
+    return 0;
+}
+```
+
+### Explanation:
+
+1. **CreateToolhelp32Snapshot and PROCESSENTRY32**:
+   - `CreateToolhelp32Snapshot` captures a snapshot of the currently running processes. `PROCESSENTRY32` is used to iterate through these processes.
+
+2. **OpenProcess**:
+   - This function opens a handle to the process with `PROCESS_QUERY_INFORMATION` access, which is needed to query the process token.
+
+3. **OpenProcessToken**:
+   - Retrieves a handle to the access token associated with a process.
+
+4. **GetTokenInformation**:
+   - Retrieves information about the token, specifically the `TokenUser` structure, which contains the user's SID.
+
+5. **LookupAccountSid**:
+   - Converts the SID to a human-readable username and domain.
+
+6. **Error Handling**:
+   - The code checks for errors at various points to ensure that operations like token retrieval and SID lookup are successful. It reports errors using `GetLastError()`.
+
+7. **Memory Management**:
+   - Memory allocated with `malloc` for the `TOKEN_USER` structure is freed using `free`. Similarly, memory allocated by `ConvertSidToStringSid` is freed using `LocalFree`.
+
+
 ### Understanding Kerberos and Domain Credentials
 
 **Kerberos** is a network authentication protocol used in Windows environments (among others) to authenticate users and services securely. It's the default authentication method used in Active Directory (AD) environments.

