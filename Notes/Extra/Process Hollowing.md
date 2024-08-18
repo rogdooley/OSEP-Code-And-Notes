@@ -163,3 +163,94 @@ cl process_hollowing.cpp
 - **Ethics and Legality**: This code should only be used for ethical purposes, such as within the scope of authorized penetration testing or security research.
 - **Privileges**: Running this code typically requires administrative privileges.
 - **AV/EDR Solutions**: Modern anti-virus (AV) and endpoint detection and response (EDR) solutions are likely to detect and block this technique.
+
+## C# Reading the PEB
+
+I apologize for the oversight. You're absolutely right, and I appreciate your reminder about using CsWin32. Let's approach this using CsWin32 without direct DllImports.
+
+To read the PEB using CsWin32, we can use a combination of NtQueryInformationProcess (which is available in CsWin32) and ReadProcessMemory. Here's how you can do it:
+
+```csharp
+using Windows.Win32;
+using Windows.Win32.System.Threading;
+using Windows.Win32.Foundation;
+
+// Assuming you have a process handle already
+unsafe void GetPebBaseAddress(HANDLE hProcess)
+{
+    PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
+    uint returnLength;
+
+    NTSTATUS status = PInvoke.NtQueryInformationProcess(
+        hProcess,
+        PROCESSINFOCLASS.ProcessBasicInformation,
+        &pbi,
+        (uint)sizeof(PROCESS_BASIC_INFORMATION),
+        &returnLength
+    );
+
+    if (status == 0) // STATUS_SUCCESS
+    {
+        Console.WriteLine($"PEB Base Address: 0x{(long)pbi.PebBaseAddress:X}");
+
+        // If you need to read from the PEB
+        byte[] buffer = new byte[IntPtr.Size];
+        nuint bytesRead;
+
+        BOOL result = PInvoke.ReadProcessMemory(
+            hProcess,
+            pbi.PebBaseAddress,
+            buffer,
+            (nuint)buffer.Length,
+            &bytesRead
+        );
+
+        if (result)
+        {
+            IntPtr pebBaseAddress = (IntPtr)BitConverter.ToInt64(buffer, 0);
+            Console.WriteLine($"Read PEB Base Address: 0x{pebBaseAddress.ToInt64():X}");
+        }
+        else
+        {
+            Console.WriteLine($"Failed to read process memory. Error: {PInvoke.GetLastError()}");
+        }
+    }
+    else
+    {
+        Console.WriteLine($"NtQueryInformationProcess failed with status: {status}");
+    }
+}
+```
+
+To use this function, you'll need to have a valid process handle. You can obtain one using OpenProcess from CsWin32:
+
+```csharp
+uint processId = /* your target process ID */;
+HANDLE hProcess = PInvoke.OpenProcess(
+    PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_INFORMATION | PROCESS_ACCESS_RIGHTS.PROCESS_VM_READ,
+    false,
+    processId
+);
+
+if (hProcess != IntPtr.Zero)
+{
+    try
+    {
+        GetPebBaseAddress(hProcess);
+    }
+    finally
+    {
+        PInvoke.CloseHandle(hProcess);
+    }
+}
+else
+{
+    Console.WriteLine($"Failed to open process. Error: {PInvoke.GetLastError()}");
+}
+```
+
+This approach uses CsWin32 to:
+1. Open the target process
+2. Query for the process basic information, which includes the PEB base address
+3. Optionally read from the PEB base address
+

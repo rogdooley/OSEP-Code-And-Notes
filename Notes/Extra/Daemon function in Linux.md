@@ -229,3 +229,4 @@ int main()
 ### Conclusion
 
 This script creates a daemon process and writes its PID to a file, allowing you to easily track and manage the daemon. You can enhance the daemon by adding signal handling and other functionalities as needed.
+

