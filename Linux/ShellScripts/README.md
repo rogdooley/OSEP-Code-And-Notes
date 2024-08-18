@@ -1,0 +1,7 @@
+| File                          | Description                                                                                                                              | Status                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| b64EncodeBinaryForCertUtil.sh | Creates a fake certificate with a base64 encoded payload. Used to upload code to Windows with certutil.                                  | working                     |
+| hijack_so_boilerplate.sh      | Automate creating a malicious shared library                                                                                             | tested, but not extensively |
+| ltrace_find_functions.sh      | Run ltrace and capture function calls from a binary                                                                                      | working                     |
+| msf_handler.sh                | Script to start Metasploit : `msfconsole -q -x "use exploit/multi/handler; set LHOST tun0; set LPORT $LPORT; set PAYLOAD $PAYLOAD; run"` | working                     |
+| search_binaries_for_so.sh     | Takes a shared library and path to search for any binaries in the path that use the shared library.                                      | working                     |
