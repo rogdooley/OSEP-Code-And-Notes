@@ -372,3 +372,60 @@ This command dumps a list of all running processes to `C:\Windows\Temp\processes
 
 ### Conclusion
 Running PowerShell scripts from Sliver is straightforward and can be done using the `shell`, `powershell`, or `execute-assembly` commands. Depending on your specific operational needs, you can choose the method that best suits your scenario. However, always ensure that you're operating within legal and ethical boundaries, particularly when testing or simulating attacks.
+
+To use the Sliver C2 framework to create a tunnel that proxies an RDP session, you’ll need to follow these general steps:
+
+### **1. Setup Sliver C2 Framework**
+   - **Install Sliver:** 
+     - Download and install the Sliver C2 framework on your attack machine. You can get it from the official [Sliver GitHub repository](https://github.com/BishopFox/sliver).
+     - Run the Sliver server by executing `sliver-server` in your terminal.
+
+### **2. Generate a Sliver Implant**
+   - **Create the Implant:**
+     - Generate a new implant (payload) that will be executed on the target system.
+     - Use a command like:
+       ```bash
+       generate --mtls --save /path/to/save/implant.exe
+       ```
+     - Options like `--mtls` specify the type of communication (e.g., mutual TLS).
+
+### **3. Deploy the Implant on the Target System**
+   - **Deploy the Payload:**
+     - Transfer the generated implant to the target machine.
+     - Execute the implant on the target machine to establish a connection back to the Sliver server.
+
+### **4. Establish a Tunnel in Sliver**
+   - **Start a Session:**
+     - Once the implant connects back, you will see it in the `sessions` list.
+     - Interact with the session by using:
+       ```bash
+       sessions
+       use <session_id>
+       ```
+   - **Create a Tunnel:**
+     - Set up a tunnel that forwards traffic to your target’s RDP port.
+     - Use the `tunnel` command:
+       ```bash
+       tunnel add --local 127.0.0.1:3389 --remote 127.0.0.1:3389
+       ```
+     - This command sets up a tunnel where traffic on your local machine’s port `3389` (RDP) is forwarded to the target’s RDP port.
+
+### **5. Proxy the RDP Session**
+   - **Connect via RDP:**
+     - Open your RDP client on your local machine.
+     - Connect to `127.0.0.1:3389`, which will now proxy the connection to the target machine's RDP service via the tunnel you established.
+
+### **6. Monitor and Manage the Tunnel**
+   - **View Tunnels:**
+     - Use `tunnel list` to view active tunnels.
+   - **Remove Tunnel:**
+     - If you need to remove a tunnel, use:
+       ```bash
+       tunnel del <tunnel_id>
+       ```
+
+### **Important Considerations:**
+   - **Firewall/NAT Evasion:** Reverse tunneling (via the implant) helps bypass NAT/firewalls, allowing you to connect to services like RDP even if the target is behind a firewall or NAT.
+   - **Security Measures:** Ensure you have the appropriate authorization to perform these actions, as tunneling into a system without permission is illegal and unethical.
+
+This setup enables you to proxy an RDP session through Sliver, allowing remote access and control of the target system via the RDP protocol.

@@ -1,4 +1,5 @@
 
+
 ### C# Payload Ideas
 - https://www.tevora.com/threat-blog/dynamic-invocation-in-csharp/
 - https://hausec.com/2020/10/30/using-a-c-shellcode-runner-and-confuserex-to-bypass-uac-while-evading-av/
@@ -51,3 +52,4 @@
 ### Scanning payloads
 
 - KleenScan (https://kleenscan.com/index)
+- WebSec https://websec.nl/en/scanner

