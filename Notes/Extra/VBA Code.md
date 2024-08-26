@@ -1,6 +1,6 @@
 - VB Command Reference: https://ss64.com/vb/
 - JScript: https://learn.microsoft.com/en-us/dotnet/api/microsoft.jscript?view=netframework-4.8.1
-- 
+
 ### Download and save to path
 
 ```vba

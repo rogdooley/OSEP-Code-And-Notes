@@ -1,0 +1,4 @@
+## **NOTE**: Any code within these notes might not run properly. They might need some serious tweaking. They are just ideas for research and shouldn't be expected to behave as POCs or otherwise. I've found errors (eg need cookies for Artifactory APIs and the urls for the enpoints are wrong).
+
+
+These notes are essentially output from ChatGPT while doing research during my OSEP course. They represent ideas or further research into topics covered in the OSEP. Any code, commands, or explanations should be taken with a grain of salt. I wanted to explore some topics further as well as generating playbooks come exam time. Code that is outside of the notes (Linux and Windows folders) will generally work unless otherwise noted.

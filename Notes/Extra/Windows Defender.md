@@ -216,3 +216,61 @@ int main() {
 
 ### GitHub Links
 https://github.com/TapXWorld/osep_tools/blob/main/Bypass_Defender/DisableDefender.ps1
+
+# Bypassing Defender Ideas if being blocked due to CreateRemoteThread
+
+If Windows Defender is detecting and shutting down your shellcode due to the use of `CreateRemoteThread`, there are several alternative techniques you can try to avoid detection. These techniques involve using more subtle methods to execute code in a remote process, or making changes to the way you inject and execute the shellcode.
+
+### **Alternative Techniques to Bypass Windows Defender**:
+
+1. **Using `NtCreateThreadEx`**:
+   - `NtCreateThreadEx` is a lower-level API that can be used to create threads in a remote process. It is less commonly monitored by antivirus software compared to `CreateRemoteThread`.
+   - Example usage in C++:
+     ```cpp
+     HANDLE hThread = NULL;
+     NTSTATUS status = NtCreateThreadEx(&hThread, THREAD_ALL_ACCESS, NULL, hProcess, (LPTHREAD_START_ROUTINE)remoteBuffer, NULL, FALSE, NULL, NULL, NULL, NULL);
+     ```
+
+2. **Using `QueueUserAPC`**:
+   - `QueueUserAPC` allows you to queue an APC (Asynchronous Procedure Call) to a thread in a remote process. When the thread enters an alertable state, it will execute the APC.
+   - Example usage in C++:
+     ```cpp
+     HANDLE hThread = OpenThread(THREAD_SET_CONTEXT, FALSE, threadId);
+     QueueUserAPC((PAPCFUNC)remoteBuffer, hThread, NULL);
+     ```
+
+3. **Using `SetWindowsHookEx`**:
+   - `SetWindowsHookEx` can be used to inject a DLL into a process by setting a hook. The DLL can then be used to execute code in the context of the target process.
+   - This method is useful for targeting GUI applications or processes with a message loop.
+
+4. **Reflective DLL Injection**:
+   - Instead of injecting raw shellcode, you can inject a DLL that is loaded reflectively. This method involves manually loading the DLL into the target process without using `LoadLibrary`.
+   - Reflective DLL injection is harder for AV to detect because it avoids API calls that are commonly monitored.
+
+5. **Process Hollowing**:
+   - Process hollowing involves creating a new process in a suspended state, unmapping its memory, and replacing it with the memory of a malicious executable. The process is then resumed, and it executes the injected code.
+   - This technique can bypass many AV solutions because the code is executed in the context of a legitimate process.
+
+6. **Thread Hijacking**:
+   - Instead of creating a new thread, you can hijack an existing thread in the target process. This involves suspending the thread, changing its context to point to your shellcode, and resuming it.
+   - Since you’re not creating a new thread, this method can be stealthier.
+
+7. **Direct System Calls**:
+   - By avoiding the use of high-level Windows API functions and making direct system calls instead, you can reduce the likelihood of detection. Tools like `SysWhispers` can help generate code that makes direct system calls.
+   - This technique requires an understanding of the system call numbers and calling conventions used by Windows.
+
+8. **Memory Scanning Avoidance**:
+   - Encrypt or encode your shellcode in memory and only decrypt it just before execution. This can prevent Windows Defender from recognizing your shellcode patterns in memory.
+
+9. **Manual Mapping**:
+   - Manually map your shellcode or DLL into the target process without using common API calls like `VirtualAllocEx` or `WriteProcessMemory`. This involves parsing the PE headers and setting up the memory yourself.
+
+10. **Parent Process Spoofing**:
+    - Some AV solutions rely on process trees to detect suspicious behavior. By spoofing the parent process of your target process, you can make the behavior appear less suspicious.
+
+### **Considerations**:
+- **Detection Heuristics**: Modern AV solutions like Windows Defender use heuristics to detect malicious behavior. Mixing and matching techniques can help evade detection.
+- **Testing**: Always test in a controlled environment to ensure that your bypass technique is effective without causing instability in the target process.
+- **ETW (Event Tracing for Windows)**: Some AV solutions monitor Event Tracing for Windows (ETW) to detect suspicious activity. Be aware that some techniques might still be caught by advanced monitoring.
+
+Using a combination of these techniques, you can make your code injection process more stealthy and avoid detection by Windows Defender.

@@ -146,3 +146,5 @@ if ($writableExecutableDirectories.Count -gt 0) {
     Write-Host "No writable and executable directories found inside $windowsPath."
 }
 ```
+
+

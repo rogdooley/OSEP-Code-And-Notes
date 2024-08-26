@@ -1,4 +1,49 @@
 
+Restricted Admin Mode is a security feature designed to enhance the security of Remote Desktop Protocol (RDP) connections. It was introduced in Windows 8.1 and Windows Server 2012 R2 to help mitigate the risk of credential theft during RDP sessions.
+
+### **Understanding Restricted Admin Mode:**
+
+1. **Traditional RDP Connections:**
+   - When you connect to a remote system using RDP, your credentials (username and password or smart card PIN) are transmitted to the remote system.
+   - These credentials can be stored in the memory of the remote system, potentially exposing them to theft if the system is compromised.
+   - Attackers who gain access to the remote system can extract these credentials using tools like Mimikatz and use them to authenticate to other systems on the network.
+
+2. **Restricted Admin Mode:**
+   - In Restricted Admin Mode, your credentials are not transmitted to the remote system.
+   - Instead, a form of single sign-on (SSO) is used. When you initiate an RDP session in Restricted Admin Mode, the client doesn't send your credentials to the server. Instead, it presents a security token that grants access to the session.
+   - The remote system then grants you administrator-level access without having your credentials stored on that system.
+   - This reduces the risk of credential theft, as your credentials are not available in the memory of the remote machine.
+
+### **How to Use Restricted Admin Mode:**
+
+- **Enabling Restricted Admin Mode on the Remote System:**
+  - To use Restricted Admin Mode, it must be enabled on the target system by setting a registry key:
+    ```bash
+    reg add "HKLM\System\CurrentControlSet\Control\Lsa" /v DisableRestrictedAdmin /t REG_DWORD /d 0 /f
+    ```
+
+- **Connecting with Restricted Admin Mode:**
+  - To initiate an RDP session in Restricted Admin Mode, use the following command:
+    ```bash
+    mstsc /restrictedadmin
+    ```
+  - Alternatively, you can create a shortcut or modify the RDP file to include the `/restrictedadmin` switch.
+
+### **Limitations of Restricted Admin Mode:**
+
+1. **Access Limitations:**
+   - Restricted Admin Mode grants you access to the remote system as a local administrator, but you may not be able to use network resources (e.g., shared folders or other network services) because your credentials aren't sent to the remote system.
+   - The remote system cannot use your credentials to authenticate to other network services, which can be a limitation if you need to access resources on other machines.
+
+2. **Not a Silver Bullet:**
+   - While Restricted Admin Mode mitigates the risk of credential theft, it doesn't prevent all types of attacks. If an attacker compromises the remote system, they can still exploit other vulnerabilities or use the session for lateral movement.
+
+3. **Compatibility:**
+   - Restricted Admin Mode is only supported on Windows systems that are Windows 8.1/Windows Server 2012 R2 or later. Older systems cannot initiate or receive Restricted Admin Mode RDP sessions.
+
+### **Relation to RDP:**
+
+Restricted Admin Mode is specifically designed for RDP connections. It addresses a critical security concern with traditional RDP sessions by reducing the attack surface related to credential theft. It is particularly useful in high-security environments where protecting administrative credentials is paramount. However, it should be used with a clear understanding of its limitations and in combination with other security measures.
 ### Tutorial: Lateral Movement with RDP, Reverse Proxying, and Credential Stealing
 
 ---
