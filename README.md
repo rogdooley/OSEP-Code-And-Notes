@@ -1,5 +1,5 @@
 
-## Notes: Contains notes for the course and ideas or topics for further research
+## Notes: Contains notes for the Offensive Security OSEP (Pen300) course and ideas or topics for further research
 
 
 ## Windows: Code for the course that is either a result of the code presented in the modules or code of my own that is being worked on.
