@@ -95,7 +95,7 @@ class Program
             {
                 connection.Open();
 
-                string[] commands = sqlCommands.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
+                string[] commands = sqlCommands.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var commandText in commands)
                 {
                     using (SqlCommand command = new SqlCommand(commandText.Trim(), connection))
