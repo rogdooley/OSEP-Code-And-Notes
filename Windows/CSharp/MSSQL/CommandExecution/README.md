@@ -1,4 +1,4 @@
-I created this code as an alternative to the methods presented in the OSEP course. This code, when compiled, will login and run commands on an MSSQL DB and then send the results back over http/https(untested) to http-server.py in the Linux section of this repository. 
+I created this code as an alternative to the methods presented in the OSEP course. This code, when compiled, will login and run commands on an MSSQL DB and then send the results back over http/https(untested) to http-server.py in the Linux section of this repository. The other addition to this is BrowserDetection.cs which is supposed to look for installed web browsers and send a user agent string matching an installed browser. This just adds a bit of plausibility under traffic inspection. I don't know yet how far I'll go with evasion and obfuscation methods here.
 
 ### Usage
 
