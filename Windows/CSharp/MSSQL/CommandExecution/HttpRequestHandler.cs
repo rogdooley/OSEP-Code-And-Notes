@@ -16,6 +16,9 @@ public class HttpRequestHandler
         string fullUrl = $"{baseUrl}/{relativeUrl}";
         using (var client = new WebClient())
         {
+            // Set the User-Agent header
+            client.Headers[HttpRequestHeader.UserAgent] = browserDetection.GetBrowserUserAgent();
+
             // Ignore SSL certificate validation
             ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(delegate { return true; });
 
@@ -36,6 +39,9 @@ public class HttpRequestHandler
         string fullUrl = $"{baseUrl}/{relativeUrl}";
         using (var client = new WebClient())
         {
+            // Set the User-Agent header
+            client.Headers[HttpRequestHeader.UserAgent] = browserDetection.GetBrowserUserAgent();
+
             // Ignore SSL certificate validation
             ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(delegate { return true; });
 
