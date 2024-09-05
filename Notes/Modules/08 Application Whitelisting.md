@@ -133,6 +133,114 @@ Bypassing AppLocker using installer packages is a technique that exploits the tr
 
 Modifying an existing MSI file to include custom actions or payloads can be done using tools like **Orca**, **InstEd**, or **WiX Toolset**. Below, I’ll guide you through the process using Orca, a tool provided by Microsoft, which allows for detailed editing of MSI files.
 
+The default Windows Installer rules in Windows are part of the AppLocker and Software Restriction Policies (SRP) that help to control which executables, scripts, and installers can run on a system. Understanding these rules and how they operate can give insight into potential bypass techniques.
+
+### **Default Windows Installer Rules Overview**
+
+Windows typically comes with default rules that allow or deny the execution of MSI files and other installer types. These rules can vary based on the specific policies enforced by an organization, but generally include:
+
+1. **Allow All Signed Executables**:
+   - This rule allows any executable or installer that is digitally signed by a trusted publisher to run.
+
+2. **Allow Specific Paths**:
+   - Rules may allow execution of installers located in specific directories, such as `C:\Windows\Installer\` or `C:\Program Files\`.
+
+3. **Allow All MSI Installers**:
+   - By default, Windows may allow all `.msi` and `.msp` files to run, unless specifically blocked by a rule.
+
+4. **Deny All Unsigned or Unknown Sources**:
+   - This rule blocks any executable or installer that is not digitally signed by a trusted source or does not fall under an allowed path.
+
+### **Potential Bypass Techniques**
+
+#### **1. Leveraging Signed but Malicious Installers**
+
+**How It Works**:
+- Attackers can use installers signed with a valid digital signature, potentially obtained through a compromised certificate or a certificate obtained from a less reputable CA.
+
+**Bypass Example**:
+- If the default rule allows all signed executables, an attacker could sign a malicious MSI with a valid certificate and execute it on the system without being blocked.
+
+#### **2. Placing Installers in Trusted Paths**
+
+**How It Works**:
+- Attackers can place a malicious installer in a directory that is allowed by the default rules, such as `C:\Windows\Installer\` or `C:\Program Files\`.
+
+**Bypass Example**:
+- A malicious installer placed in `C:\Windows\Installer\` might be executed because it resides in a trusted path.
+
+#### **3. Exploiting Weaknesses in Wildcard Rules**
+
+**How It Works**:
+- Sometimes, wildcard rules are too permissive, allowing broader categories of files to execute.
+
+**Bypass Example**:
+- If there is a rule like `*trustedpath*`, placing a malicious MSI in any path containing the string "trustedpath" could allow execution.
+
+#### **4. Using DLL Side-Loading or Hijacking**
+
+**How It Works**:
+- Even if MSI files are controlled, attackers can exploit DLL side-loading or hijacking within the installation process.
+
+**Bypass Example**:
+- If an allowed installer loads a DLL from an unprotected location, an attacker could replace that DLL with a malicious version.
+
+#### **5. Misusing Unsigned but Allowed Installers**
+
+**How It Works**:
+- In some environments, unsigned MSI files might still be allowed due to overly permissive policies or legacy support needs.
+
+**Bypass Example**:
+- Attackers can craft an unsigned MSI that exploits this leniency to execute malicious code.
+
+#### **6. Utilizing Parent-Child Process Relationships**
+
+**How It Works**:
+- Exploit the relationship between a trusted parent process and a child process that is not subject to the same restrictions.
+
+**Bypass Example**:
+- A trusted application could be manipulated to launch an MSI file in a way that bypasses the execution restrictions.
+
+#### **7. Exploiting Misconfigured or Overlooked Rules**
+
+**How It Works**:
+- Administrators might create specific allow rules for certain installers that are mistakenly too broad, leaving gaps.
+
+**Bypass Example**:
+- An attacker finds a path or file type not explicitly denied and places their malicious installer there.
+
+#### **8. Using Alternate Installer Formats**
+
+**How It Works**:
+- If the policy focuses on `.msi` files, using alternate formats like `.exe`, `.bat`, or `.ps1` could bypass the rules.
+
+**Bypass Example**:
+- A malicious script or EXE that performs the same actions as an MSI but isn’t covered by the same rules.
+
+### **Defense Against These Bypass Techniques**
+
+1. **Strict Application Control**:
+   - Ensure that rules are not overly broad and cover all potential file types and execution paths.
+
+2. **Code Signing Enforcement**:
+   - Require that all executables, including MSI files, must be signed by a trusted CA, and maintain a strict allowlist of publishers.
+
+3. **Path and File Type Restrictions**:
+   - Limit the execution of installers to specific, tightly controlled paths, and avoid allowing wildcard paths.
+
+4. **Regular Auditing**:
+   - Periodically review and audit the rules in place to ensure they cover new threats and reflect the current environment.
+
+5. **Application Whitelisting**:
+   - Implement stricter application whitelisting policies using AppLocker or other tools to control what software can run.
+
+6. **Logging and Monitoring**:
+   - Ensure that all execution attempts are logged and that unusual activity is flagged for further investigation.
+
+### **Conclusion**
+
+By understanding the default Windows Installer rules and the potential gaps in their enforcement, you can identify ways to bypass these protections during a penetration test. However, this knowledge should also be used to help secure systems by tightening policies and implementing more stringent controls. Regular audits and updates to security policies are essential to maintaining robust defenses against such attacks.
+
 ### **Step-by-Step Guide to Modify an Existing MSI File**
 
 #### **Step 1: Download and Install Orca**

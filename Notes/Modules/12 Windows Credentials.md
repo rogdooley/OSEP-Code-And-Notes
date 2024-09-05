@@ -825,7 +825,7 @@ Certainly! Here's a brief description of each Win32 API function you listed:
 
 These functions are commonly used in scenarios involving security, impersonation, and process management in Windows.
 
-Got it! Here's the table with columns for the return type, function name, and a subtable for the arguments. Optional arguments are highlighted with an asterisk (*).
+Table with columns for the return type, function name, and a subtable for the arguments. Optional arguments are highlighted with an asterisk (*).
 
 | **Return Type**  | **Function**               | **Arguments**                                                                                                              |
 |------------------|----------------------------|----------------------------------------------------------------------------------------------------------------------------|

