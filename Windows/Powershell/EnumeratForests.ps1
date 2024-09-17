@@ -72,3 +72,24 @@ $serviceAccounts | Format-Table
 
 Write-Output "4. Sensitive Groups:"
 $sensitiveGroups | Format-Table
+
+
+# Get the forest object
+Write-Output "Enumerating all domains in the forest..."
+$forest = Get-ADForest
+
+# Enumerate all domains in the forest
+$domains = $forest.Domains
+Write-Output "Domains in the forest:"
+$domains | ForEach-Object { $_ }
+
+# Loop through each domain and list all groups
+foreach ($domain in $domains) {
+    Write-Output "Listing groups in domain: $domain"
+
+    # Use PowerView to list groups in the current domain
+    $groups = Get-DomainGroup -Domain $domain | Select-Object Name, SamAccountName
+    
+    # Output groups in table format
+    $groups | Format-Table -AutoSize
+}
