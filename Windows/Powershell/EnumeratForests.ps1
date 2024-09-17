@@ -93,3 +93,25 @@ foreach ($domain in $domains) {
     # Output groups in table format
     $groups | Format-Table -AutoSize
 }
+
+
+#$domains | ForEach-Object { $_ }
+
+# Specify the group name
+$groupName = "Enterprise Admins"
+
+# Loop through each domain and get members of the Enterprise Admins group
+foreach ($domain in $domains) {
+    Write-Output "Finding members of the $groupName group in domain: $domain"
+    
+    # Get the members of Enterprise Admins in the current domain
+    $enterpriseAdmins = Get-DomainGroupMember -Identity $groupName -Domain $domain
+
+    # Display the results in a formatted table
+    if ($enterpriseAdmins) {
+        $enterpriseAdmins | Select-Object MemberName, MemberType | Format-Table -AutoSize
+    } else {
+        Write-Output "No members found in domain: $domain"
+    }
+}
+
