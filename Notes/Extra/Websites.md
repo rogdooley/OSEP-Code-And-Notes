@@ -50,6 +50,8 @@
 - https://aj-labz.gitbook.io/aj-labz/offensive-cyberz/defense-evasion/evade-heuristic-behaviors/applocker-bypass
 - https://lolbas-project.github.io/
 - https://ppn.snovvcrash.rocks/pentest/infrastructure/ad/av-edr-evasion/applocker-bypass
+- https://github.com/CyberSecurityUP/OSCE3-Complete-Guide?tab=readme-ov-file
+- https://www.thehacker.recipes/ad/movement/kerberos/delegations/unconstrained
 ### Scanning payloads
 
 - KleenScan (https://kleenscan.com/index)

@@ -554,6 +554,39 @@ $encodedData = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("Hello, 
 curl -X POST -H "Content-Type: text/plain" --data $encodedData http://localhost:8080
 ```
 
+
+#### Send a file:**
+
+```powershell
+# Path to the file
+$filePath = "C:\path\to\your\file.txt"
+
+# URL of the web server
+$url = "http://yourserver.com/upload"
+
+# Step 1: Read the file into a byte array
+$fileBytes = [System.IO.File]::ReadAllBytes("C:\path\to\your\file.txt")
+
+# Step 2: Base64 encode the file content
+$base64File = [Convert]::ToBase64String($fileBytes)
+
+# Step 3: Prepare the body (in this case, as JSON)
+# If the server expects other formats, adjust the body structure accordingly
+$body = @{
+    fileName = [System.IO.Path]::GetFileName($filePath)
+    fileData = $base64File
+}
+
+# Convert the body to JSON format
+$jsonBody = $body | ConvertTo-Json
+
+# Step 4: Send the POST request
+$response = Invoke-RestMethod -Uri $url -Method Post -Body $jsonBody -ContentType "application/json"
+
+# Step 5: Output the server response
+$response
+
+```
 ### **Summary**
 
 - **Linux**: Use `echo`, `base64`, and `curl` to encode and send POST requests.
