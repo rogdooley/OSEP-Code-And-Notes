@@ -167,7 +167,7 @@ Impacket provides tools that can help in configuring and exploiting RBCD:
 - **addcomputer.py**: This Impacket tool allows you to add a computer account to the domain. You can use it to add an account with controlled delegation rights.
 
 ```bash
-python3 addcomputer.py -method RBCD -domain <domain> -username <user> -password <password> -dc-ip <dc-ip>
+python3 addcomputer.py -method LDAPS -domain <domain> -username <user> -password <password> -dc-ip <dc-ip>
 ```
 
 - **rbcd.py**: A custom script in Impacket (or others you can find) to modify the `msDS-AllowedToActOnBehalfOfOtherIdentity` attribute.

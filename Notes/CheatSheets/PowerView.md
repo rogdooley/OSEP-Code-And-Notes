@@ -211,3 +211,63 @@ To list all locked-out user accounts in AD:
 Get-DomainUser -LockedOut
 ```
 
+
+### 1. **Unconstrained Delegation**
+Unconstrained delegation allows a service to impersonate users for any service. It is configured by setting the `TRUSTED_FOR_DELEGATION` flag in the `userAccountControl` attribute.
+
+#### **PowerView Command for Unconstrained Delegation:**
+```powershell
+# Enumerate computers with Unconstrained Delegation
+Get-DomainComputer -Unconstrained | Select-Object Name, SamAccountName
+
+# Enumerate users with Unconstrained Delegation
+Get-DomainUser -Unconstrained | Select-Object Name, SamAccountName
+```
+
+### 2. **Constrained Delegation**
+Constrained delegation allows a service to impersonate users, but only for specific services that are listed in the `msDS-AllowedToDelegateTo` attribute.
+
+#### **PowerView Command for Constrained Delegation:**
+```powershell
+# Enumerate computers with Constrained Delegation
+Get-DomainComputer -TrustedToAuth | Select-Object Name, SamAccountName, msDS-AllowedToDelegateTo
+
+# Enumerate users with Constrained Delegation
+Get-DomainUser -TrustedToAuth | Select-Object Name, SamAccountName, msDS-AllowedToDelegateTo
+```
+
+### 3. **Resource-Based Constrained Delegation (RBCD)**
+RBCD allows a resource to specify which accounts can impersonate users for the resource, managed by the `msDS-AllowedToActOnBehalfOfOtherIdentity` attribute. To find computers with RBCD enabled, you check for objects that have `GenericWrite` permissions on other computers.
+
+#### **PowerView Command for RBCD:**
+```powershell
+# Enumerate computers with RBCD (Resource-Based Constrained Delegation)
+Get-DomainComputer | 
+    Get-ObjectAcl -ResolveGUIDs | 
+    ForEach-Object {
+        $_ | Add-Member -NotePropertyName Identity -NotePropertyValue (ConvertFrom-SID $_.SecurityIdentifier.value) -Force
+        $_
+    } | 
+    Where-Object { $_.ActiveDirectoryRights -like '*GenericWrite*' }
+```
+
+```powershell
+# Find computers with permissions allowing RBCD attack vectors
+Get-DomainComputer | 
+    Get-ObjectAcl -ResolveGUIDs | 
+    ForEach-Object {
+        # Convert SID to user/group name
+        $_ | Add-Member -NotePropertyName Identity -NotePropertyValue (ConvertFrom-SID $_.SecurityIdentifier.value) -Force
+        $_
+    } | 
+    Where-Object {
+        # Check for relevant permissions: GenericAll, GenericWrite, WriteDACL, WriteProperty
+        $_.ActiveDirectoryRights -like '*GenericAll*' -or
+        $_.ActiveDirectoryRights -like '*GenericWrite*' -or
+        $_.ActiveDirectoryRights -like '*WriteDACL*' -or
+        $_.ActiveDirectoryRights -like '*WriteProperty*'
+    } | 
+    Select-Object Identity, ObjectDN, ActiveDirectoryRights
+
+```
+

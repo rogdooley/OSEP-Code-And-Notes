@@ -56,3 +56,8 @@
 
 - KleenScan (https://kleenscan.com/index)
 - WebSec https://websec.nl/en/scanner
+
+## Playbooks
+
+- Pentester's Promiscuous Notebook https://ppn.snovvcrash.rocks/
+- https://infra.newerasec.com/

