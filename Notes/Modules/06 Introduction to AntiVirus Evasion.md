@@ -1,3 +1,5 @@
+
+
 ```vb
 Private Declare PtrSafe Function Sleep Lib "KERNEL32" (ByVal mili As Long) As Long
 Sub Document_Open()

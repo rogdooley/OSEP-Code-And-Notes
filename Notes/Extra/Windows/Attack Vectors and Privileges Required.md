@@ -171,3 +171,7 @@ In a domain environment, you can use Group Policy to assign privileges to users 
 - **Reboot/Logoff**: Some changes require the user to log off and back on, or the system to be rebooted, for them to take effect.
 
 By using the methods outlined above, you can manage user privileges in Windows environments to control what actions users can perform on the system.
+
+### SeManageVolumePrivs
+
+- https://github.com/CsEnox/SeManageVolumeExploit.git

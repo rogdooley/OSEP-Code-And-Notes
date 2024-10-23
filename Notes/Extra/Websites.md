@@ -38,7 +38,12 @@
 ### Misc
 
 - https://lolbas-project.github.io/
+- https://cheatsheet.haax.fr/windows-systems/privilege-escalation/
 
+### PPL
+
+- https://github.com/itm4n/PPLcontrol
+- https://github.com/wavestone-cdt/EDRSandblast
 
 ### For Ideas OSEP
 
