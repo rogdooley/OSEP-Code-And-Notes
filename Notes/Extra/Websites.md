@@ -27,6 +27,7 @@
 - https://github.com/tkmru/awesome-edr-bypass?tab=readme-ov-file
 - https://github.com/Mr-Un1k0d3r/EDRs
 - https://book.hacktricks.xyz/windows-hardening/av-bypass
+- https://blog.fndsec.net/2024/10/04/uncovering-exclusion-paths-in-microsoft-defender-a-security-research-insight/ (Finding Defender Exclusions)
 ### Obfuscation
 
 - VBA https://github.com/bonnetn/vba-obfuscator?tab=readme-ov-file

@@ -338,4 +338,55 @@ Disable-WindowsDefender
 
 - **Integration**: The function is called immediately after breaking out of a restricted PowerShell environment. This ensures that Defender is disabled before running the rest of your enumeration script.
 
-By incorporating this function into your script, you'll have the capability to disable Windows Defender when possible, enhancing the script's ability to run without interference from security measures.
+
+
+## Port scanning
+
+### Top 100 tcp ports
+
+```powershell
+# Define the subnet to scan
+$Subnet = "192.168.1"    # Update to match your subnet
+
+# List of top 1000 ports based on common usage
+$TopPorts = @(7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157)
+
+# Array to store results
+$Results = @()
+
+# Scan for active hosts
+for ($i = 1; $i -le 254; $i++) {
+    $IpAddress = "$Subnet.$i"
+    
+    # Ping the host to check if it's alive
+    if (Test-Connection -ComputerName $IpAddress -Count 1 -Quiet) {
+        Write-Output "Host found: $IpAddress"
+
+        # Port scanning each active host
+        foreach ($Port in $TopPorts) {
+            $TCPClient = New-Object System.Net.Sockets.TcpClient
+            try {
+                $TCPClient.Connect($IpAddress, $Port)
+                $Status = "Open"
+                $TCPClient.Close()
+            } catch {
+                $Status = "Closed"
+            }
+
+            # Store result
+            $Results += [PSCustomObject]@{
+                IPAddress = $IpAddress
+                Port = $Port
+                Status = $Status
+            }
+        }
+    }
+}
+
+# Output results
+$Results | Format-Table -AutoSize
+
+# Optionally export results to a CSV
+$Results | Export-Csv -Path "NetworkScanResults.csv" -NoTypeInformation
+
+```

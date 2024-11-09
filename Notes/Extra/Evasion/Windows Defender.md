@@ -1,4 +1,10 @@
 
+## Further Research
+
+- https://blog.fndsec.net/2024/10/04/uncovering-exclusion-paths-in-microsoft-defender-a-security-research-insight/
+
+
+
 Disabling or tampering with Windows Defender (now known as Microsoft Defender Antivirus) should only be done in environments where you have explicit permission, such as during authorized penetration testing or red teaming engagements. Disabling Windows Defender without authorization is illegal and unethical.
 
 However, for educational purposes, here’s an overview of methods that can be used to disable Windows Defender and how to detect if it’s running. **Please note that these techniques should only be used in controlled and legal environments.**

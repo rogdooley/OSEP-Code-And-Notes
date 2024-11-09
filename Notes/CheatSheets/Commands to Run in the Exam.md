@@ -41,6 +41,7 @@ Invoke-Command -computername <name> -scriptblock { whoami }
 
 #### Obfuscation
 - Invoke-Steatlh on kali (https://github.com/JoelGMSec/Invoke-Stealth?tab=readme-ov-file)
+
 ## PowerView
 
 - Website https://powersploit.readthedocs.io/en/latest/Recon/
