@@ -4,7 +4,7 @@ function Invoke-DeadPotato {
         [string]$Arguments = "-cmd whoami"
     )
 
-    $b64="<Insert gzipped/b64 binary here>";
+    $b64="<Insert gzipped +_b64 encoded string here>";
     # Decode + decompress
     $bytes = [Convert]::FromBase64String($b64)
     $ms = New-Object IO.MemoryStream(, $bytes)
