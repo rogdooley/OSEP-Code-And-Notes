@@ -5,6 +5,7 @@
 - https://rxored.github.io/post/csharploader/bypassing-amsi-with-csharp/#amsiscanbuffer
 - https://medium.com/@sam.rothlisberger/amsi-bypass-memory-patch-technique-in-2024-f5560022752b
 
+---
 
 - **Invoke-InMemoryDotNet** – A generalized loader for any .NET assembly with a static `Main(string[] args)` method.
 - **Invoke-DeadPotato** – A specific loader for the DeadPotato exploit
