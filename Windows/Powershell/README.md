@@ -7,8 +7,9 @@
 
 ---
 
-- **Invoke-InMemoryDotNet** – A generalized loader for any .NET assembly with a static `Main(string[] args)` method.
 - **Invoke-DeadPotato** – A specific loader for the DeadPotato exploit
+- **Invoke-InMemoryDotNet** – A generalized loader for any .NET assembly with a static `Main(string[] args)` method.
+
 
 ## Invoke-DeadPotato
 
